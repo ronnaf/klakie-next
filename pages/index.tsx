@@ -1,21 +1,12 @@
 import { Button } from '@chakra-ui/button';
-import {
-  Box,
-  Center,
-  Container,
-  Heading,
-  Link,
-  Stack,
-  Text,
-} from '@chakra-ui/layout';
-import { AlertDialog } from '@chakra-ui/modal';
+import { Box, Center, Container, Heading, Stack } from '@chakra-ui/layout';
 import { chakra } from '@chakra-ui/system';
 import { Textarea } from '@chakra-ui/textarea';
 import { useToast } from '@chakra-ui/toast';
 import type { NextPage } from 'next';
 import { useRouter } from 'next/dist/client/router';
 import Head from 'next/head';
-import React, { useState } from 'react';
+import React from 'react';
 import { k } from '../utils/constants';
 
 const Home: NextPage = () => {
