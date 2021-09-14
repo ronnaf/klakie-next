@@ -9,7 +9,15 @@ import {
   ExternalLinkIcon,
   SettingsIcon,
 } from '@chakra-ui/icons';
-import { Box, Container, Flex, HStack, Spacer, Text } from '@chakra-ui/layout';
+import {
+  Box,
+  Center,
+  Container,
+  Flex,
+  HStack,
+  Spacer,
+  Text,
+} from '@chakra-ui/layout';
 import {
   Menu,
   MenuButton,
@@ -19,8 +27,13 @@ import {
   MenuList,
 } from '@chakra-ui/menu';
 import {
+  Alert,
+  AlertDescription,
+  AlertIcon,
+  AlertTitle,
   IconButton,
   Input,
+  ListItem,
   Modal,
   ModalBody,
   ModalCloseButton,
@@ -28,25 +41,27 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
+  UnorderedList,
 } from '@chakra-ui/react';
 import { Select } from '@chakra-ui/select';
 import { Switch } from '@chakra-ui/switch';
 import { useToast } from '@chakra-ui/toast';
 import dayjs from 'dayjs';
-import Cookies from 'js-cookie';
 import _ from 'lodash';
 import { GetServerSidePropsContext } from 'next';
 import Head from 'next/head';
+import { useRouter } from 'next/router';
 import numeral from 'numeral';
 import React, { useState } from 'react';
 import { k } from '../lib/constants';
 import { setCookie } from '../lib/cookie-helper';
 import { ClockifyUser } from '../lib/models/clockify-user';
 import { ClockifyWorkspace } from '../lib/models/clockify-workspace';
+import { FailureData, SuccessData } from '../lib/models/data';
 
 interface Props {
-  user: ClockifyUser;
-  workspaces: ClockifyWorkspace[];
+  user: SuccessData<ClockifyUser> | FailureData;
+  workspaces: SuccessData<ClockifyWorkspace[]> | FailureData;
   initialHourlyRate: number;
 }
 
@@ -54,6 +69,7 @@ const Workspace = (props: Props) => {
   const { colorMode, toggleColorMode } = useColorMode();
   const { isOpen, onOpen, onClose } = useDisclosure();
 
+  const router = useRouter();
   const toast = useToast();
 
   const [hourlyRate, setHourlyRate] = useState(props.initialHourlyRate);
@@ -94,85 +110,117 @@ const Workspace = (props: Props) => {
       </Head>
       <Box py='8'>
         <Container maxW='container.md'>
-          {/* start::Header */}
-          <Flex alignItems='center'>
-            <Box>
-              <Select defaultValue={props.user.defaultWorkspace}>
-                {props.workspaces.map((workspace) => (
-                  <option key={workspace.id} value={workspace.id}>
-                    {workspace.name}
-                  </option>
-                ))}
-              </Select>
-            </Box>
-            <Spacer />
-            <Box>
-              <HStack spacing='4'>
-                <Text>Hi, {props.user.name.split(' ')[0]}!</Text>
-                <Menu placement='bottom-end' closeOnSelect={false}>
-                  <MenuButton
-                    as={Avatar}
-                    name={props.user.name}
-                    src={props.user.profilePicture}
-                  />
-                  <MenuList>
-                    <MenuGroup title='Color mode'>
-                      <MenuItem>
-                        <Switch
-                          mr='3'
-                          isChecked={colorMode === 'dark'}
-                          onChange={toggleColorMode}
-                        />
-                        <span>{_.startCase(colorMode)} mode</span>
-                      </MenuItem>
-                    </MenuGroup>
-                    <MenuDivider />
-                    <MenuItem icon={<SettingsIcon />}>Settings</MenuItem>
-                    <MenuItem icon={<ExternalLinkIcon />}>Log out</MenuItem>
-                  </MenuList>
-                </Menu>
-              </HStack>
-            </Box>
-          </Flex>
-          {/* end::Header */}
+          {props.user.status === 'success' &&
+          props.workspaces.status === 'success' ? (
+            <>
+              {/* start::Header */}
+              <Flex alignItems='center'>
+                <Box>
+                  <Select defaultValue={props.user.data.defaultWorkspace}>
+                    {props.workspaces.data.map((workspace) => (
+                      <option key={workspace.id} value={workspace.id}>
+                        {workspace.name}
+                      </option>
+                    ))}
+                  </Select>
+                </Box>
+                <Spacer />
+                <Box>
+                  <HStack spacing='4'>
+                    <Text>Hi, {props.user.data.name.split(' ')[0]}!</Text>
+                    <Menu placement='bottom-end' closeOnSelect={false}>
+                      <MenuButton
+                        as={Avatar}
+                        name={props.user.data.name}
+                        src={props.user.data.profilePicture}
+                      />
+                      <MenuList>
+                        <MenuGroup title='Color mode'>
+                          <MenuItem>
+                            <Switch
+                              mr='3'
+                              isChecked={colorMode === 'dark'}
+                              onChange={toggleColorMode}
+                            />
+                            <span>{_.startCase(colorMode)} mode</span>
+                          </MenuItem>
+                        </MenuGroup>
+                        <MenuDivider />
+                        <MenuItem icon={<SettingsIcon />}>Settings</MenuItem>
+                        <MenuItem icon={<ExternalLinkIcon />}>Log out</MenuItem>
+                      </MenuList>
+                    </Menu>
+                  </HStack>
+                </Box>
+              </Flex>
+              {/* end::Header */}
 
-          {/* start::Customizers */}
-          <Flex alignItems='center' mt='8'>
-            <Box>
-              <HStack>
-                <Text as='kbd' fontWeight='bold' fontSize='lg'>
-                  ₱{numeral(hourlyRate).format('0,0.00')} /hr
-                </Text>
-                <IconButton
-                  aria-label='Edit hourly rate'
-                  variant='ghost'
-                  icon={<EditIcon />}
-                  onClick={onOpen}
-                />
-              </HStack>
-            </Box>
-            <Spacer />
-            <Box>
-              <HStack>
-                <Select>
-                  <option value='semi-monthly'>Semi-monthly</option>
-                  <option value='weekly'>Weekly</option>
-                </Select>
-                <ButtonGroup isAttached>
-                  <IconButton
-                    aria-label='Previous date range'
-                    icon={<ArrowBackIcon />}
-                  />
-                  <Button>This week</Button>
-                  <IconButton
-                    aria-label='Next date range'
-                    icon={<ArrowForwardIcon />}
-                  />
-                </ButtonGroup>
-              </HStack>
-            </Box>
-          </Flex>
-          {/* end::Customizers */}
+              {/* start::Customizers */}
+              <Flex alignItems='center' mt='8'>
+                <Box>
+                  <HStack>
+                    <Text as='kbd' fontWeight='bold' fontSize='lg'>
+                      ₱{numeral(hourlyRate).format('0,0.00')} /hr
+                    </Text>
+                    <IconButton
+                      aria-label='Edit hourly rate'
+                      variant='ghost'
+                      icon={<EditIcon />}
+                      onClick={onOpen}
+                    />
+                  </HStack>
+                </Box>
+                <Spacer />
+                <Box>
+                  <HStack>
+                    <Select>
+                      <option value='semi-monthly'>Semi-monthly</option>
+                      <option value='weekly'>Weekly</option>
+                    </Select>
+                    <ButtonGroup isAttached>
+                      <IconButton
+                        aria-label='Previous date range'
+                        icon={<ArrowBackIcon />}
+                      />
+                      <Button>This week</Button>
+                      <IconButton
+                        aria-label='Next date range'
+                        icon={<ArrowForwardIcon />}
+                      />
+                    </ButtonGroup>
+                  </HStack>
+                </Box>
+              </Flex>
+              {/* end::Customizers */}
+            </>
+          ) : (
+            <Alert
+              status='error'
+              variant='subtle'
+              flexDirection='column'
+              alignItems='center'
+              justifyContent='center'>
+              <AlertIcon boxSize='40px' mr={0} />
+              <AlertTitle mt={4} mb={1} fontSize='lg'>
+                Failed to load page
+              </AlertTitle>
+              <AlertDescription maxWidth='sm'>
+                <UnorderedList>
+                  {props.user.status === 'failure' && (
+                    <ListItem>We could not get your Clockify profile</ListItem>
+                  )}
+                  {props.workspaces.status === 'failure' && (
+                    <ListItem>
+                      We could not get your Clockify workspaces
+                    </ListItem>
+                  )}
+                </UnorderedList>
+              </AlertDescription>
+              <Button mt='6' onClick={() => router.replace('/')}>
+                Go back to login
+              </Button>
+            </Alert>
+          )}
         </Container>
       </Box>
 
@@ -229,8 +277,14 @@ export async function getServerSideProps(
   // Pass data to the page via props
   return {
     props: {
-      user,
-      workspaces,
+      user: {
+        status: user.code ? 'failure' : 'success',
+        data: user,
+      },
+      workspaces: {
+        status: workspaces.code ? 'failure' : 'success',
+        data: workspaces,
+      },
       initialHourlyRate,
     },
   };
