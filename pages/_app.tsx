@@ -1,7 +1,7 @@
 import '../styles/globals.css';
 import type { AppProps } from 'next/app';
 import { ChakraProvider } from '@chakra-ui/react';
-import { useAuth } from '../utils/hooks/useAuth';
+import { useAuth } from '../lib/hooks/useAuth';
 
 function MyApp({ Component, pageProps }: AppProps) {
   return (

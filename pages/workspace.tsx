@@ -1,7 +1,7 @@
 import { Avatar } from '@chakra-ui/avatar';
 import { useColorMode } from '@chakra-ui/color-mode';
 import { ExternalLinkIcon, SettingsIcon } from '@chakra-ui/icons';
-import { Box, Code, Container, Flex, Spacer, Text } from '@chakra-ui/layout';
+import { Box, Container, Flex, Spacer, Text } from '@chakra-ui/layout';
 import {
   Menu,
   MenuButton,
@@ -14,12 +14,20 @@ import { HStack } from '@chakra-ui/react';
 import { Select } from '@chakra-ui/select';
 import { Switch } from '@chakra-ui/switch';
 import _ from 'lodash';
+import { GetServerSidePropsContext } from 'next';
 import Head from 'next/head';
 import React from 'react';
+import { k } from '../lib/constants';
+import { ClockifyUser } from '../lib/models/clockify-user';
+import { ClockifyWorkspace } from '../lib/models/clockify-workspace';
 
-const Workspace = () => {
+interface Props {
+  user: ClockifyUser;
+  workspaces: ClockifyWorkspace[];
+}
+
+const Workspace = (props: Props) => {
   const { colorMode, toggleColorMode } = useColorMode();
-
   return (
     <>
       <Head>
@@ -35,10 +43,12 @@ const Workspace = () => {
           <Flex alignItems='center'>
             <Box>
               <HStack spacing='4'>
-                <Select placeholder='Select option'>
-                  <option value='option1'>Option 1</option>
-                  <option value='option2'>Option 2</option>
-                  <option value='option3'>Option 3</option>
+                <Select defaultValue={props.user.defaultWorkspace}>
+                  {props.workspaces.map((workspace) => (
+                    <option key={workspace.id} value={workspace.id}>
+                      {workspace.name}
+                    </option>
+                  ))}
                 </Select>
                 <Text as='kbd'>P567.44/hr</Text>
               </HStack>
@@ -48,8 +58,8 @@ const Workspace = () => {
               <Menu placement='bottom-end' closeOnSelect={false}>
                 <MenuButton
                   as={Avatar}
-                  name='Dan Abramov'
-                  src='https://bit.ly/dan-abramov'
+                  name={props.user.name}
+                  src={props.user.profilePicture}
                 />
                 <MenuList>
                   <MenuGroup title='Color mode'>
@@ -74,5 +84,31 @@ const Workspace = () => {
     </>
   );
 };
+
+// This gets called on every request
+export async function getServerSideProps(
+  context: GetServerSidePropsContext
+): Promise<{ props: Props }> {
+  const baseUrl = 'https://api.clockify.me/api';
+  const init: RequestInit = {
+    headers: {
+      'X-Api-Key': context.req.cookies[k.API_KEY_KEY],
+    },
+  };
+
+  const userResponse = await fetch(`${baseUrl}/v1/user`, init);
+  const user = await userResponse.json();
+
+  const workspacesResponse = await fetch(`${baseUrl}/v1/workspaces`, init);
+  const workspaces = await workspacesResponse.json();
+
+  // Pass data to the page via props
+  return {
+    props: {
+      user,
+      workspaces,
+    },
+  };
+}
 
 export default Workspace;

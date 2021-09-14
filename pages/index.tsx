@@ -9,14 +9,14 @@ import {
   VStack,
 } from '@chakra-ui/layout';
 import { Switch } from '@chakra-ui/switch';
-import { chakra } from '@chakra-ui/system';
 import { Textarea } from '@chakra-ui/textarea';
 import { useToast } from '@chakra-ui/toast';
+import Cookies from 'js-cookie';
 import type { NextPage } from 'next';
 import { useRouter } from 'next/dist/client/router';
 import Head from 'next/head';
 import React from 'react';
-import { k } from '../utils/constants';
+import { k } from '../lib/constants';
 
 const Home: NextPage = () => {
   const { colorMode, toggleColorMode } = useColorMode();
@@ -38,11 +38,8 @@ const Home: NextPage = () => {
       });
     }
 
-    // See: https://nextjs.org/docs/migrating/from-create-react-app#safely-accessing-web-apis
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(k.API_KEY_KEY, target.apiKey.value);
-      router.push('/workspace');
-    }
+    Cookies.set(k.API_KEY_KEY, target.apiKey.value);
+    router.push('/workspace');
   };
 
   return (
