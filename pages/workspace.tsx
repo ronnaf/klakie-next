@@ -40,6 +40,7 @@ import Head from 'next/head';
 import numeral from 'numeral';
 import React, { useState } from 'react';
 import { k } from '../lib/constants';
+import { setCookie } from '../lib/cookie-helper';
 import { ClockifyUser } from '../lib/models/clockify-user';
 import { ClockifyWorkspace } from '../lib/models/clockify-workspace';
 
@@ -75,7 +76,7 @@ const Workspace = (props: Props) => {
       });
     }
 
-    Cookies.set(k.HOURLY_RATE_KEY, target.rate.value.toString());
+    setCookie(k.HOURLY_RATE_KEY, target.rate.value.toString());
     setHourlyRate(target.rate.value);
 
     onClose();

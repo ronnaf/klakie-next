@@ -17,6 +17,7 @@ import { useRouter } from 'next/dist/client/router';
 import Head from 'next/head';
 import React from 'react';
 import { k } from '../lib/constants';
+import { setCookie } from '../lib/cookie-helper';
 
 const Home: NextPage = () => {
   const { colorMode, toggleColorMode } = useColorMode();
@@ -38,7 +39,7 @@ const Home: NextPage = () => {
       });
     }
 
-    Cookies.set(k.API_KEY_KEY, target.apiKey.value);
+    setCookie(k.API_KEY_KEY, target.apiKey.value);
     router.push('/workspace');
   };
 
