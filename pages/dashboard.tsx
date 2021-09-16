@@ -80,6 +80,7 @@ const Workspace = (props: Props) => {
     props.user.status === "success" ? props.user.data.defaultWorkspace : null
   );
 
+  // Listens to changes in [range] and updates the report data accordingly
   useEffect(() => {
     (async () => {
       if (!workspaceId) {
@@ -88,13 +89,8 @@ const Workspace = (props: Props) => {
 
       setLoading(true);
       const report = await clockifyApiService.getDetailedReport(
-        {
-          range: { start: range.start.toDate(), end: range.end.toDate() },
-          workspaceId: workspaceId,
-        },
-        {
-          apiKey: Cookies.get(k.API_KEY_KEY) || "",
-        }
+        { range: { start: range.start.toDate(), end: range.end.toDate() }, workspaceId: workspaceId },
+        { apiKey: Cookies.get(k.API_KEY_KEY) || "" }
       );
       setLoading(false);
 
@@ -103,6 +99,24 @@ const Workspace = (props: Props) => {
       }
     })();
   }, [range.end, range.start, workspaceId]);
+
+  // Listens to changes in [period] and updates the range accordingly
+  useEffect(() => {
+    if (period === "semi-monthly") {
+      setRange((prevRange) => {
+        const start = prevRange.start;
+        const fifteenth = dayjs.utc([start.year(), start.month(), 15]);
+        return start.date() < 15
+          ? { start: start.startOf("month"), end: fifteenth.endOf("date") }
+          : { start: fifteenth.add(1, "day").startOf("date"), end: start.endOf("month") };
+      });
+    } else {
+      setRange((prevRange) => ({
+        start: prevRange.start.startOf("week").add(1, "day"),
+        end: prevRange.start.endOf("week").add(1, "day"),
+      }));
+    }
+  }, [period]);
 
   const onSaveHourlyRate = (e: React.SyntheticEvent) => {
     e.preventDefault();
@@ -125,17 +139,41 @@ const Workspace = (props: Props) => {
   };
 
   const onNextRange = () => {
-    setRange((prevRange) => ({
-      start: prevRange.start.add(1, "week"),
-      end: prevRange.end.add(1, "week"),
-    }));
+    if (period === "weekly") {
+      setRange((prevRange) => ({
+        start: prevRange.start.add(1, "week").startOf("date"),
+        end: prevRange.end.add(1, "week").endOf("date"),
+      }));
+    } else {
+      setRange((prevRange) => {
+        const newStart = prevRange.end.add(1, "day");
+        const fifteenth = dayjs.utc([newStart.year(), newStart.month(), 15]);
+        const newEnd = newStart.date() > 15 ? newStart.endOf("month") : fifteenth;
+        return {
+          start: newStart.startOf("date"),
+          end: newEnd.endOf("date"),
+        };
+      });
+    }
   };
 
   const onPrevRange = () => {
-    setRange((prevRange) => ({
-      start: prevRange.start.subtract(1, "week"),
-      end: prevRange.end.subtract(1, "week"),
-    }));
+    if (period === "weekly") {
+      setRange((prevRange) => ({
+        start: prevRange.start.subtract(1, "week").startOf("date"),
+        end: prevRange.end.subtract(1, "week").endOf("date"),
+      }));
+    } else {
+      setRange((prevRange) => {
+        const newEnd = prevRange.start.subtract(1, "day");
+        const sixteenth = dayjs.utc([newEnd.year(), newEnd.month(), 16]);
+        const newStart = newEnd.date() > 15 ? sixteenth : newEnd.startOf("month");
+        return {
+          start: newStart.startOf("date"),
+          end: newEnd.endOf("date"),
+        };
+      });
+    }
   };
 
   const onCopyToClipboard = (duration: string) => {
@@ -147,12 +185,12 @@ const Workspace = (props: Props) => {
   };
 
   const reportStats = useMemo(() => {
-    const totalTimeInHours = convertSecondsToHours(report?.totals[0]?.totalTime || 0);
+    const totalTimeInHours = convertSecondsToHours(report?.totals?.[0]?.totalTime || 0);
     const calculatedEarnings = calculateEarnings(totalTimeInHours, hourlyRate);
     return [
       {
         name: "Total Time",
-        value: formatDecimalTimeToDuration(report?.totals[0]?.totalTime || 0, "seconds"),
+        value: formatDecimalTimeToDuration(report?.totals?.[0]?.totalTime || 0, "seconds"),
       },
       {
         name: "Total Earnings",
@@ -186,7 +224,7 @@ const Workspace = (props: Props) => {
               {/* begin::Header */}
               <Flex alignItems="center">
                 <Box>
-                  <Select defaultValue={workspaceId || ""}>
+                  <Select defaultValue={workspaceId || ""} onChange={(e) => setWorkspace(e.target.value)}>
                     {props.workspaces.data.map((workspace) => (
                       <option key={workspace.id} value={workspace.id}>
                         {workspace.name}

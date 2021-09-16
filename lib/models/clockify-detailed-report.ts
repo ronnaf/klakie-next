@@ -1,5 +1,5 @@
 export interface ClockifyDetailedReport {
-  totals: Total[] | [null];
+  totals: Total[] | [null] | null;
   timeentries: TimeEntry[];
 }
 
