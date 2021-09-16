@@ -17,7 +17,7 @@ import { useRouter } from 'next/dist/client/router';
 import Head from 'next/head';
 import React from 'react';
 import { k } from '../lib/constants';
-import { setCookie } from '../lib/cookie-helper';
+import { setCookie } from '../lib/helpers/cookie-helper';
 
 const Home: NextPage = () => {
   const { colorMode, toggleColorMode } = useColorMode();

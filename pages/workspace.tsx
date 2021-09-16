@@ -10,13 +10,16 @@ import {
   SettingsIcon,
 } from '@chakra-ui/icons';
 import {
+  Badge,
   Box,
   Container,
+  Divider,
   Flex,
   Grid,
   HStack,
   Spacer,
   Text,
+  VStack,
 } from '@chakra-ui/layout';
 import {
   Menu,
@@ -41,6 +44,11 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
+  Stat,
+  StatLabel,
+  StatNumber,
+  Tag,
+  Tooltip,
   UnorderedList,
 } from '@chakra-ui/react';
 import { Select } from '@chakra-ui/select';
@@ -55,24 +63,17 @@ import { useRouter } from 'next/router';
 import numeral from 'numeral';
 import React, { useEffect, useMemo, useState } from 'react';
 import { k } from '../lib/constants';
-import { setCookie } from '../lib/cookie-helper';
+import { setCookie } from '../lib/helpers/cookie-helper';
 import {
   convertSecondsToHours,
-  formatSecondsToDuration,
-} from '../lib/duration-helper';
+  formatDecimalTimeToDuration,
+} from '../lib/helpers/duration-helper';
+import { calculateEarnings } from '../lib/helpers/earnings-helper';
+import { getDailyTimeEntries } from '../lib/helpers/entries-helper';
 import { ClockifyDetailedReport } from '../lib/models/clockify-detailed-report';
 import { ClockifyUser } from '../lib/models/clockify-user';
 import { ClockifyWorkspace } from '../lib/models/clockify-workspace';
 import { FailureData, SuccessData } from '../lib/models/data';
-import {
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  StatArrow,
-  StatGroup,
-} from '@chakra-ui/react';
-import { calculateEarnings } from '../lib/earnings-helper';
 
 type Period = 'weekly' | 'semi-monthly';
 
@@ -171,33 +172,39 @@ const Workspace = (props: Props) => {
     }));
   };
 
-  const reportStats = useMemo(
-    () => [
+  const reportStats = useMemo(() => {
+    const calculatedEarnings = calculateEarnings(
+      convertSecondsToHours(report?.totals[0]?.totalTime || 0),
+      hourlyRate
+    );
+
+    return [
       {
         name: 'Total Time',
-        value: formatSecondsToDuration(report?.totals[0]?.totalTime || 0),
+        value: formatDecimalTimeToDuration(
+          report?.totals[0]?.totalTime || 0,
+          'seconds'
+        ),
       },
       {
         name: 'Total Earnings',
-        value: `₱${numeral(
-          calculateEarnings(report?.totals[0]?.totalTime || 0, hourlyRate)
-            .totalEarnings
-        ).format('0,0.00')}`,
+        value: `₱${numeral(calculatedEarnings.totalEarnings).format('0,0.00')}`,
       },
       {
         name: 'Tax Withheld',
-        value: `₱${numeral(
-          calculateEarnings(report?.totals[0]?.totalTime || 0, hourlyRate)
-            .taxWithheld
-        ).format('0,0.00')}`,
+        value: `₱${numeral(calculatedEarnings.taxWithheld).format('0,0.00')}`,
       },
-    ],
-    [hourlyRate, report?.totals]
+    ];
+  }, [hourlyRate, report?.totals]);
+
+  const dailyTimeEntries = useMemo(
+    () => getDailyTimeEntries(report?.timeentries || []),
+    [report?.timeentries]
   );
 
   return (
     <>
-      {/* start::Head */}
+      {/* begin::Head */}
       <Head>
         <title>Klakie - Workspace</title>
         <meta
@@ -207,13 +214,13 @@ const Workspace = (props: Props) => {
         <link rel='icon' href='/favicon.ico' />
       </Head>
       {/* end::Head */}
-      {/* start::Main Content */}
+      {/* begin::Main Content */}
       <Box py='8'>
         <Container maxW='container.md'>
           {props.user.status === 'success' &&
           props.workspaces.status === 'success' ? (
             <>
-              {/* start::Header */}
+              {/* begin::Header */}
               <Flex alignItems='center'>
                 <Box>
                   <Select defaultValue={workspaceId || ''}>
@@ -254,7 +261,7 @@ const Workspace = (props: Props) => {
                 </Box>
               </Flex>
               {/* end::Header */}
-              {/* start::Customizers */}
+              {/* begin::Customizers */}
               <Flex alignItems='center' mt='8'>
                 <Box>
                   <HStack>
@@ -298,7 +305,7 @@ const Workspace = (props: Props) => {
                 </Box>
               </Flex>
               {/* end::Customizers */}
-              {/* start::Report Stats */}
+              {/* begin::Report Stats */}
               <Grid templateColumns='repeat(3, 1fr)' gap={3} my='6'>
                 {reportStats.map((stat) => (
                   <Box
@@ -315,6 +322,96 @@ const Workspace = (props: Props) => {
                 ))}
               </Grid>
               {/* end::Report Stats */}
+              {/* begin::Time Entries */}
+              <Box>
+                {dailyTimeEntries.map((dailyTimeEntry) => (
+                  <Box
+                    key={dailyTimeEntry.dateStarted}
+                    my='6'
+                    border='1px'
+                    borderColor='whiteAlpha.300'
+                    borderRadius='md'>
+                    {/* begin::Daily Entry Header */}
+                    <Flex p='2' bg='whiteAlpha.50'>
+                      <HStack>
+                        <Text>
+                          {dayjs(dailyTimeEntry.dateStarted).format('MMMM DD')}
+                        </Text>
+                        <Tag>
+                          {dayjs(dailyTimeEntry.dateStarted).format('dddd')}
+                        </Tag>
+                      </HStack>
+                      <Spacer />
+                      <HStack>
+                        <Text>
+                          {formatDecimalTimeToDuration(
+                            dailyTimeEntry.totalDayHours,
+                            'hours'
+                          )}
+                        </Text>
+                        <Divider orientation='vertical' />
+                        <Text>{dailyTimeEntry.totalDayHours.toFixed(2)}</Text>
+                        <Divider orientation='vertical' />
+                        <Badge>
+                          ₱
+                          {numeral(
+                            calculateEarnings(
+                              dailyTimeEntry.totalDayHours,
+                              hourlyRate
+                            ).totalEarnings
+                          ).format('0,0.00')}
+                        </Badge>
+                      </HStack>
+                    </Flex>
+                    {/* end::Daily Entry Header */}
+                    <Divider />
+                    <Box>
+                      {dailyTimeEntry.groupedTimeEntries.map(
+                        (groupedTimeEntry, index) => {
+                          const isLast =
+                            index ===
+                            dailyTimeEntry.groupedTimeEntries.length - 1;
+                          return (
+                            <>
+                              <Box p='2' key={groupedTimeEntry.id}>
+                                <Flex>
+                                  <HStack>
+                                    <Tag>
+                                      {groupedTimeEntry.timeEntries.length}
+                                    </Tag>
+                                    <Text>{groupedTimeEntry.description}</Text>
+                                  </HStack>
+                                  <Spacer />
+                                  <HStack>
+                                    <Text>
+                                      {formatDecimalTimeToDuration(
+                                        groupedTimeEntry.totalDescHours,
+                                        'hours'
+                                      )}
+                                    </Text>
+                                    <Tooltip
+                                      label='Click to copy'
+                                      aria-label='A tooltip'
+                                      placement='right'>
+                                      <Button size='sm'>
+                                        {groupedTimeEntry.totalDescHours.toFixed(
+                                          2
+                                        )}
+                                      </Button>
+                                    </Tooltip>
+                                  </HStack>
+                                </Flex>
+                              </Box>
+                              {!isLast && <Divider />}
+                            </>
+                          );
+                        }
+                      )}
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+              {/* end::Time Entries */}
             </>
           ) : (
             <Alert
@@ -347,7 +444,7 @@ const Workspace = (props: Props) => {
         </Container>
       </Box>
       {/* end::Main Content */}
-      {/* start::Modal */}
+      {/* begin::Modal */}
       <Modal isOpen={isOpen} onClose={onClose}>
         <form onSubmit={onSaveHourlyRate}>
           <ModalOverlay />
