@@ -224,7 +224,11 @@ const Workspace = (props: Props) => {
               {/* begin::Header */}
               <Flex alignItems="center">
                 <Box>
-                  <Select defaultValue={workspaceId || ""} onChange={(e) => setWorkspace(e.target.value)}>
+                  <Select
+                    disabled={loading}
+                    defaultValue={workspaceId || ""}
+                    onChange={(e) => setWorkspace(e.target.value)}
+                  >
                     {props.workspaces.data.map((workspace) => (
                       <option key={workspace.id} value={workspace.id}>
                         {workspace.name}
@@ -237,7 +241,12 @@ const Workspace = (props: Props) => {
                   <HStack spacing="4">
                     <Text>Hi, {props.user.data.name.split(" ")[0]}!</Text>
                     <Menu placement="bottom-end" closeOnSelect={false}>
-                      <MenuButton as={Avatar} name={props.user.data.name} src={props.user.data.profilePicture} />
+                      <MenuButton
+                        as={Avatar}
+                        cursor="pointer"
+                        name={props.user.data.name}
+                        src={props.user.data.profilePicture}
+                      />
                       <MenuList>
                         <MenuGroup title="Color mode">
                           <MenuItem>
@@ -261,7 +270,13 @@ const Workspace = (props: Props) => {
                     <Text as="kbd" fontWeight="bold" fontSize="lg">
                       ₱{numeral(hourlyRate).format("0,0.00")} /hr
                     </Text>
-                    <IconButton aria-label="Edit hourly rate" variant="ghost" icon={<EditIcon />} onClick={onOpen} />
+                    <IconButton
+                      disabled={loading}
+                      aria-label="Edit hourly rate"
+                      variant="ghost"
+                      icon={<EditIcon />}
+                      onClick={onOpen}
+                    />
                   </HStack>
                 </Box>
                 <Spacer />
@@ -272,16 +287,26 @@ const Workspace = (props: Props) => {
                         <Spinner />
                       </Box>
                     )}
-                    <Select value={period} onChange={(e) => setPeriod(e.target.value as Period)}>
+                    <Select disabled={loading} value={period} onChange={(e) => setPeriod(e.target.value as Period)}>
                       <option value="semi-monthly">Semi-monthly</option>
                       <option value="weekly">Weekly</option>
                     </Select>
                     <ButtonGroup isAttached>
-                      <IconButton aria-label="Previous date range" icon={<ArrowBackIcon />} onClick={onPrevRange} />
+                      <IconButton
+                        disabled={loading}
+                        aria-label="Previous date range"
+                        icon={<ArrowBackIcon />}
+                        onClick={onPrevRange}
+                      />
                       <Button>
                         {range.start.format("MMM DD")} - {range.end.format("MMM DD")}
                       </Button>
-                      <IconButton aria-label="Next date range" icon={<ArrowForwardIcon />} onClick={onNextRange} />
+                      <IconButton
+                        disabled={loading}
+                        aria-label="Next date range"
+                        icon={<ArrowForwardIcon />}
+                        onClick={onNextRange}
+                      />
                     </ButtonGroup>
                   </HStack>
                 </Box>
