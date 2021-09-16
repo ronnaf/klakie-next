@@ -3,7 +3,7 @@ import { Button, ButtonGroup } from "@chakra-ui/button";
 import { useColorMode } from "@chakra-ui/color-mode";
 import { useDisclosure } from "@chakra-ui/hooks";
 import { ArrowBackIcon, ArrowForwardIcon, EditIcon, ExternalLinkIcon, SettingsIcon } from "@chakra-ui/icons";
-import { Badge, Box, Container, Divider, Flex, Grid, HStack, Spacer, Text, VStack } from "@chakra-ui/layout";
+import { Badge, Box, Container, Divider, Flex, Grid, HStack, Spacer, Text } from "@chakra-ui/layout";
 import { Menu, MenuButton, MenuDivider, MenuGroup, MenuItem, MenuList } from "@chakra-ui/menu";
 import {
   Alert,
@@ -20,6 +20,7 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
+  Spinner,
   Stat,
   StatLabel,
   StatNumber,
@@ -235,13 +236,18 @@ const Workspace = (props: Props) => {
                 <Spacer />
                 <Box>
                   <HStack>
+                    {loading && (
+                      <Box>
+                        <Spinner />
+                      </Box>
+                    )}
                     <Select value={period} onChange={(e) => setPeriod(e.target.value as Period)}>
                       <option value="semi-monthly">Semi-monthly</option>
                       <option value="weekly">Weekly</option>
                     </Select>
                     <ButtonGroup isAttached>
                       <IconButton aria-label="Previous date range" icon={<ArrowBackIcon />} onClick={onPrevRange} />
-                      <Button isLoading={loading}>
+                      <Button>
                         {range.start.format("MMM DD")} - {range.end.format("MMM DD")}
                       </Button>
                       <IconButton aria-label="Next date range" icon={<ArrowForwardIcon />} onClick={onNextRange} />
