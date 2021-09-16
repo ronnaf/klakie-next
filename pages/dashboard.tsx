@@ -48,13 +48,14 @@ import { getDailyTimeEntries } from "../lib/helpers/entries-helper";
 import { ClockifyDetailedReport } from "../lib/models/clockify-detailed-report";
 import { ClockifyUser } from "../lib/models/clockify-user";
 import { ClockifyWorkspace } from "../lib/models/clockify-workspace";
-import { FailureData, SuccessData } from "../lib/models/data";
+import { ResponseData } from "../lib/models/response-data";
+import { clockifyApiService } from "../lib/services/clockify-api-service";
 
 type Period = "weekly" | "semi-monthly";
 
 interface Props {
-  user: SuccessData<ClockifyUser> | FailureData;
-  workspaces: SuccessData<ClockifyWorkspace[]> | FailureData;
+  user: ResponseData<ClockifyUser>;
+  workspaces: ResponseData<ClockifyWorkspace[]>;
   initialHourlyRate: number;
 }
 
@@ -81,36 +82,25 @@ const Workspace = (props: Props) => {
 
   useEffect(() => {
     (async () => {
-      const apiKey = Cookies.get(k.API_KEY_KEY);
-
-      if (!apiKey) {
+      if (!workspaceId) {
         return;
       }
 
       setLoading(true);
-
-      const baseUrl = "https://reports.api.clockify.me";
-      const response = await fetch(`${baseUrl}/workspaces/${workspaceId}/reports/detailed`, {
-        method: "POST",
-        headers: {
-          "X-Api-Key": apiKey,
-          "Content-Type": "application/json",
+      const report = await clockifyApiService.getDetailedReport(
+        {
+          range: { start: range.start.toDate(), end: range.end.toDate() },
+          workspaceId: workspaceId,
         },
-        body: JSON.stringify({
-          amountShown: "HIDE_AMOUNT",
-          dateRangeStart: range.start.toJSON(),
-          dateRangeEnd: range.end.toJSON(),
-          detailedFilter: {
-            options: { totals: "CALCULATE" },
-            pageSize: 50,
-            page: 1,
-          },
-        }),
-      });
-
-      const result = await response.json();
-      setReport(result);
+        {
+          apiKey: Cookies.get(k.API_KEY_KEY) || "",
+        }
+      );
       setLoading(false);
+
+      if (report.status === "success") {
+        setReport(report.data);
+      }
     })();
   }, [range.end, range.start, workspaceId]);
 
@@ -157,7 +147,8 @@ const Workspace = (props: Props) => {
   };
 
   const reportStats = useMemo(() => {
-    const calculatedEarnings = calculateEarnings(convertSecondsToHours(report?.totals[0]?.totalTime || 0), hourlyRate);
+    const totalTimeInHours = convertSecondsToHours(report?.totals[0]?.totalTime || 0);
+    const calculatedEarnings = calculateEarnings(totalTimeInHours, hourlyRate);
     return [
       {
         name: "Total Time",
@@ -174,7 +165,9 @@ const Workspace = (props: Props) => {
     ];
   }, [hourlyRate, report?.totals]);
 
-  const dailyTimeEntries = useMemo(() => getDailyTimeEntries(report?.timeentries || []), [report?.timeentries]);
+  const dailyTimeEntries = useMemo(() => {
+    return getDailyTimeEntries(report?.timeentries || []);
+  }, [report?.timeentries]);
 
   return (
     <>
@@ -384,32 +377,17 @@ const Workspace = (props: Props) => {
 
 // This gets called on every request
 export async function getServerSideProps(context: GetServerSidePropsContext): Promise<{ props: Props }> {
-  const baseUrl = "https://api.clockify.me/api";
-  const init: RequestInit = {
-    headers: {
-      "X-Api-Key": context.req.cookies[k.API_KEY_KEY],
-    },
-  };
+  const apiKey = context.req.cookies[k.API_KEY_KEY];
 
-  const userResponse = await fetch(`${baseUrl}/v1/user`, init);
-  const user = await userResponse.json();
-
-  const workspacesResponse = await fetch(`${baseUrl}/v1/workspaces`, init);
-  const workspaces = await workspacesResponse.json();
-
+  const user = await clockifyApiService.getCurrentUser(null, { apiKey });
+  const workspaces = await clockifyApiService.getCurrentWorkspaces(null, { apiKey });
   const initialHourlyRate = parseFloat(context.req.cookies[k.HOURLY_RATE_KEY] || "0");
 
   // Pass data to the page via props
   return {
     props: {
-      user: {
-        status: user.code ? "failure" : "success",
-        data: user,
-      },
-      workspaces: {
-        status: workspaces.code ? "failure" : "success",
-        data: workspaces,
-      },
+      user: user,
+      workspaces: workspaces,
       initialHourlyRate,
     },
   };
