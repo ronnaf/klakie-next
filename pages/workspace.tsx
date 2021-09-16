@@ -1,34 +1,10 @@
-import { Avatar } from '@chakra-ui/avatar';
-import { Button, ButtonGroup } from '@chakra-ui/button';
-import { useColorMode } from '@chakra-ui/color-mode';
-import { useDisclosure } from '@chakra-ui/hooks';
-import {
-  ArrowBackIcon,
-  ArrowForwardIcon,
-  EditIcon,
-  ExternalLinkIcon,
-  SettingsIcon,
-} from '@chakra-ui/icons';
-import {
-  Badge,
-  Box,
-  Container,
-  Divider,
-  Flex,
-  Grid,
-  HStack,
-  Spacer,
-  Text,
-  VStack,
-} from '@chakra-ui/layout';
-import {
-  Menu,
-  MenuButton,
-  MenuDivider,
-  MenuGroup,
-  MenuItem,
-  MenuList,
-} from '@chakra-ui/menu';
+import { Avatar } from "@chakra-ui/avatar";
+import { Button, ButtonGroup } from "@chakra-ui/button";
+import { useColorMode } from "@chakra-ui/color-mode";
+import { useDisclosure } from "@chakra-ui/hooks";
+import { ArrowBackIcon, ArrowForwardIcon, EditIcon, ExternalLinkIcon, SettingsIcon } from "@chakra-ui/icons";
+import { Badge, Box, Container, Divider, Flex, Grid, HStack, Spacer, Text, VStack } from "@chakra-ui/layout";
+import { Menu, MenuButton, MenuDivider, MenuGroup, MenuItem, MenuList } from "@chakra-ui/menu";
 import {
   Alert,
   AlertDescription,
@@ -50,32 +26,30 @@ import {
   Tag,
   Tooltip,
   UnorderedList,
-} from '@chakra-ui/react';
-import { Select } from '@chakra-ui/select';
-import { Switch } from '@chakra-ui/switch';
-import { useToast } from '@chakra-ui/toast';
-import dayjs from 'dayjs';
-import Cookies from 'js-cookie';
-import _ from 'lodash';
-import { GetServerSidePropsContext } from 'next';
-import Head from 'next/head';
-import { useRouter } from 'next/router';
-import numeral from 'numeral';
-import React, { useEffect, useMemo, useState } from 'react';
-import { k } from '../lib/constants';
-import { setCookie } from '../lib/helpers/cookie-helper';
-import {
-  convertSecondsToHours,
-  formatDecimalTimeToDuration,
-} from '../lib/helpers/duration-helper';
-import { calculateEarnings } from '../lib/helpers/earnings-helper';
-import { getDailyTimeEntries } from '../lib/helpers/entries-helper';
-import { ClockifyDetailedReport } from '../lib/models/clockify-detailed-report';
-import { ClockifyUser } from '../lib/models/clockify-user';
-import { ClockifyWorkspace } from '../lib/models/clockify-workspace';
-import { FailureData, SuccessData } from '../lib/models/data';
+} from "@chakra-ui/react";
+import { Select } from "@chakra-ui/select";
+import { Switch } from "@chakra-ui/switch";
+import { useToast } from "@chakra-ui/toast";
+import dayjs from "dayjs";
+import Cookies from "js-cookie";
+import _ from "lodash";
+import { GetServerSidePropsContext } from "next";
+import Head from "next/head";
+import { useRouter } from "next/router";
+import numeral from "numeral";
+import React, { useEffect, useMemo, useState } from "react";
+import { k } from "../lib/constants";
+import { copyToClipboard } from "../lib/helpers/clipboard-helper";
+import { setCookie } from "../lib/helpers/cookie-helper";
+import { convertSecondsToHours, formatDecimalTimeToDuration } from "../lib/helpers/duration-helper";
+import { calculateEarnings } from "../lib/helpers/earnings-helper";
+import { getDailyTimeEntries } from "../lib/helpers/entries-helper";
+import { ClockifyDetailedReport } from "../lib/models/clockify-detailed-report";
+import { ClockifyUser } from "../lib/models/clockify-user";
+import { ClockifyWorkspace } from "../lib/models/clockify-workspace";
+import { FailureData, SuccessData } from "../lib/models/data";
 
-type Period = 'weekly' | 'semi-monthly';
+type Period = "weekly" | "semi-monthly";
 
 interface Props {
   user: SuccessData<ClockifyUser> | FailureData;
@@ -90,17 +64,18 @@ const Workspace = (props: Props) => {
   const router = useRouter();
   const toast = useToast();
 
+  const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<ClockifyDetailedReport | null>(null);
-  const [period, setPeriod] = useState<Period>('weekly');
+  const [period, setPeriod] = useState<Period>("weekly");
   const [hourlyRate, setHourlyRate] = useState(props.initialHourlyRate);
   const [range, setRange] = useState({
     // dayjs start of week is Sunday, but clockify start of week is Monday
-    start: dayjs().utc().startOf('week').add(1, 'day'),
+    start: dayjs().utc().startOf("week").add(1, "day"),
     // dayjs end of week is Saturday, but clockify end of week is Sunday
-    end: dayjs().utc().endOf('week').add(1, 'day'),
+    end: dayjs().utc().endOf("week").add(1, "day"),
   });
   const [workspaceId, setWorkspace] = useState<string | null>(
-    props.user.status === 'success' ? props.user.data.defaultWorkspace : null
+    props.user.status === "success" ? props.user.data.defaultWorkspace : null
   );
 
   useEffect(() => {
@@ -111,30 +86,30 @@ const Workspace = (props: Props) => {
         return;
       }
 
-      const baseUrl = 'https://reports.api.clockify.me';
-      const response = await fetch(
-        `${baseUrl}/workspaces/${workspaceId}/reports/detailed`,
-        {
-          method: 'POST',
-          headers: {
-            'X-Api-Key': apiKey,
-            'Content-Type': 'application/json',
+      setLoading(true);
+
+      const baseUrl = "https://reports.api.clockify.me";
+      const response = await fetch(`${baseUrl}/workspaces/${workspaceId}/reports/detailed`, {
+        method: "POST",
+        headers: {
+          "X-Api-Key": apiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amountShown: "HIDE_AMOUNT",
+          dateRangeStart: range.start.toJSON(),
+          dateRangeEnd: range.end.toJSON(),
+          detailedFilter: {
+            options: { totals: "CALCULATE" },
+            pageSize: 50,
+            page: 1,
           },
-          body: JSON.stringify({
-            amountShown: 'HIDE_AMOUNT',
-            dateRangeStart: range.start.toJSON(),
-            dateRangeEnd: range.end.toJSON(),
-            detailedFilter: {
-              options: { totals: 'CALCULATE' },
-              pageSize: 50,
-              page: 1,
-            },
-          }),
-        }
-      );
+        }),
+      });
 
       const result = await response.json();
       setReport(result);
+      setLoading(false);
     })();
   }, [range.end, range.start, workspaceId]);
 
@@ -148,7 +123,7 @@ const Workspace = (props: Props) => {
     if (!target.rate.value) {
       return toast({
         title: "It's blank, you dumbass.",
-        status: 'error',
+        status: "error",
       });
     }
 
@@ -160,70 +135,64 @@ const Workspace = (props: Props) => {
 
   const onNextRange = () => {
     setRange((prevRange) => ({
-      start: prevRange.start.add(1, 'week'),
-      end: prevRange.end.add(1, 'week'),
+      start: prevRange.start.add(1, "week"),
+      end: prevRange.end.add(1, "week"),
     }));
   };
 
   const onPrevRange = () => {
     setRange((prevRange) => ({
-      start: prevRange.start.subtract(1, 'week'),
-      end: prevRange.end.subtract(1, 'week'),
+      start: prevRange.start.subtract(1, "week"),
+      end: prevRange.end.subtract(1, "week"),
     }));
   };
 
-  const reportStats = useMemo(() => {
-    const calculatedEarnings = calculateEarnings(
-      convertSecondsToHours(report?.totals[0]?.totalTime || 0),
-      hourlyRate
-    );
+  const onCopyToClipboard = (duration: string) => {
+    copyToClipboard(duration.toString());
+    toast({
+      title: "Copied to clipboard!",
+      status: "success",
+    });
+  };
 
+  const reportStats = useMemo(() => {
+    const calculatedEarnings = calculateEarnings(convertSecondsToHours(report?.totals[0]?.totalTime || 0), hourlyRate);
     return [
       {
-        name: 'Total Time',
-        value: formatDecimalTimeToDuration(
-          report?.totals[0]?.totalTime || 0,
-          'seconds'
-        ),
+        name: "Total Time",
+        value: formatDecimalTimeToDuration(report?.totals[0]?.totalTime || 0, "seconds"),
       },
       {
-        name: 'Total Earnings',
-        value: `₱${numeral(calculatedEarnings.totalEarnings).format('0,0.00')}`,
+        name: "Total Earnings",
+        value: `₱${numeral(calculatedEarnings.totalEarnings).format("0,0.00")}`,
       },
       {
-        name: 'Tax Withheld',
-        value: `₱${numeral(calculatedEarnings.taxWithheld).format('0,0.00')}`,
+        name: "Tax Withheld",
+        value: `₱${numeral(calculatedEarnings.taxWithheld).format("0,0.00")}`,
       },
     ];
   }, [hourlyRate, report?.totals]);
 
-  const dailyTimeEntries = useMemo(
-    () => getDailyTimeEntries(report?.timeentries || []),
-    [report?.timeentries]
-  );
+  const dailyTimeEntries = useMemo(() => getDailyTimeEntries(report?.timeentries || []), [report?.timeentries]);
 
   return (
     <>
       {/* begin::Head */}
       <Head>
         <title>Klakie - Workspace</title>
-        <meta
-          name='description'
-          content='Easily track your time entries from Clockify.'
-        />
-        <link rel='icon' href='/favicon.ico' />
+        <meta name="description" content="Easily track your time entries from Clockify." />
+        <link rel="icon" href="/favicon.ico" />
       </Head>
       {/* end::Head */}
       {/* begin::Main Content */}
-      <Box py='8'>
-        <Container maxW='container.md'>
-          {props.user.status === 'success' &&
-          props.workspaces.status === 'success' ? (
+      <Box py="8">
+        <Container maxW="container.md">
+          {props.user.status === "success" && props.workspaces.status === "success" ? (
             <>
               {/* begin::Header */}
-              <Flex alignItems='center'>
+              <Flex alignItems="center">
                 <Box>
-                  <Select defaultValue={workspaceId || ''}>
+                  <Select defaultValue={workspaceId || ""}>
                     {props.workspaces.data.map((workspace) => (
                       <option key={workspace.id} value={workspace.id}>
                         {workspace.name}
@@ -233,22 +202,14 @@ const Workspace = (props: Props) => {
                 </Box>
                 <Spacer />
                 <Box>
-                  <HStack spacing='4'>
-                    <Text>Hi, {props.user.data.name.split(' ')[0]}!</Text>
-                    <Menu placement='bottom-end' closeOnSelect={false}>
-                      <MenuButton
-                        as={Avatar}
-                        name={props.user.data.name}
-                        src={props.user.data.profilePicture}
-                      />
+                  <HStack spacing="4">
+                    <Text>Hi, {props.user.data.name.split(" ")[0]}!</Text>
+                    <Menu placement="bottom-end" closeOnSelect={false}>
+                      <MenuButton as={Avatar} name={props.user.data.name} src={props.user.data.profilePicture} />
                       <MenuList>
-                        <MenuGroup title='Color mode'>
+                        <MenuGroup title="Color mode">
                           <MenuItem>
-                            <Switch
-                              mr='3'
-                              isChecked={colorMode === 'dark'}
-                              onChange={toggleColorMode}
-                            />
+                            <Switch mr="3" isChecked={colorMode === "dark"} onChange={toggleColorMode} />
                             <span>{_.startCase(colorMode)} mode</span>
                           </MenuItem>
                         </MenuGroup>
@@ -262,58 +223,37 @@ const Workspace = (props: Props) => {
               </Flex>
               {/* end::Header */}
               {/* begin::Customizers */}
-              <Flex alignItems='center' mt='8'>
+              <Flex alignItems="center" mt="8">
                 <Box>
                   <HStack>
-                    <Text as='kbd' fontWeight='bold' fontSize='lg'>
-                      ₱{numeral(hourlyRate).format('0,0.00')} /hr
+                    <Text as="kbd" fontWeight="bold" fontSize="lg">
+                      ₱{numeral(hourlyRate).format("0,0.00")} /hr
                     </Text>
-                    <IconButton
-                      aria-label='Edit hourly rate'
-                      variant='ghost'
-                      icon={<EditIcon />}
-                      onClick={onOpen}
-                    />
+                    <IconButton aria-label="Edit hourly rate" variant="ghost" icon={<EditIcon />} onClick={onOpen} />
                   </HStack>
                 </Box>
                 <Spacer />
                 <Box>
                   <HStack>
-                    <Select
-                      value={period}
-                      onChange={(e) => setPeriod(e.target.value as Period)}>
-                      <option value='semi-monthly'>Semi-monthly</option>
-                      <option value='weekly'>Weekly</option>
+                    <Select value={period} onChange={(e) => setPeriod(e.target.value as Period)}>
+                      <option value="semi-monthly">Semi-monthly</option>
+                      <option value="weekly">Weekly</option>
                     </Select>
                     <ButtonGroup isAttached>
-                      <IconButton
-                        aria-label='Previous date range'
-                        icon={<ArrowBackIcon />}
-                        onClick={onPrevRange}
-                      />
-                      <Button>
-                        {range.start.format('MMM DD')} -{' '}
-                        {range.end.format('MMM DD')}
+                      <IconButton aria-label="Previous date range" icon={<ArrowBackIcon />} onClick={onPrevRange} />
+                      <Button isLoading={loading}>
+                        {range.start.format("MMM DD")} - {range.end.format("MMM DD")}
                       </Button>
-                      <IconButton
-                        aria-label='Next date range'
-                        icon={<ArrowForwardIcon />}
-                        onClick={onNextRange}
-                      />
+                      <IconButton aria-label="Next date range" icon={<ArrowForwardIcon />} onClick={onNextRange} />
                     </ButtonGroup>
                   </HStack>
                 </Box>
               </Flex>
               {/* end::Customizers */}
               {/* begin::Report Stats */}
-              <Grid templateColumns='repeat(3, 1fr)' gap={3} my='6'>
+              <Grid templateColumns="repeat(3, 1fr)" gap={3} my="6">
                 {reportStats.map((stat) => (
-                  <Box
-                    key={stat.name}
-                    w='100%'
-                    p='4'
-                    bg='whiteAlpha.200'
-                    borderRadius='md'>
+                  <Box key={stat.name} w="100%" p="4" bg="whiteAlpha.200" borderRadius="md">
                     <Stat>
                       <StatLabel>{stat.name}</StatLabel>
                       <StatNumber>{stat.value}</StatNumber>
@@ -327,86 +267,61 @@ const Workspace = (props: Props) => {
                 {dailyTimeEntries.map((dailyTimeEntry) => (
                   <Box
                     key={dailyTimeEntry.dateStarted}
-                    my='6'
-                    border='1px'
-                    borderColor='whiteAlpha.300'
-                    borderRadius='md'>
+                    my="6"
+                    border="1px"
+                    borderColor="whiteAlpha.300"
+                    borderRadius="md"
+                  >
                     {/* begin::Daily Entry Header */}
-                    <Flex p='2' bg='whiteAlpha.50'>
+                    <Flex p="2" bg="whiteAlpha.50">
                       <HStack>
-                        <Text>
-                          {dayjs(dailyTimeEntry.dateStarted).format('MMMM DD')}
-                        </Text>
-                        <Tag>
-                          {dayjs(dailyTimeEntry.dateStarted).format('dddd')}
-                        </Tag>
+                        <Text>{dayjs(dailyTimeEntry.dateStarted).format("MMMM DD")}</Text>
+                        <Tag>{dayjs(dailyTimeEntry.dateStarted).format("dddd")}</Tag>
                       </HStack>
                       <Spacer />
                       <HStack>
-                        <Text>
-                          {formatDecimalTimeToDuration(
-                            dailyTimeEntry.totalDayHours,
-                            'hours'
-                          )}
-                        </Text>
-                        <Divider orientation='vertical' />
+                        <Text>{formatDecimalTimeToDuration(dailyTimeEntry.totalDayHours, "hours")}</Text>
+                        <Divider orientation="vertical" />
                         <Text>{dailyTimeEntry.totalDayHours.toFixed(2)}</Text>
-                        <Divider orientation='vertical' />
+                        <Divider orientation="vertical" />
                         <Badge>
                           ₱
-                          {numeral(
-                            calculateEarnings(
-                              dailyTimeEntry.totalDayHours,
-                              hourlyRate
-                            ).totalEarnings
-                          ).format('0,0.00')}
+                          {numeral(calculateEarnings(dailyTimeEntry.totalDayHours, hourlyRate).totalEarnings).format(
+                            "0,0.00"
+                          )}
                         </Badge>
                       </HStack>
                     </Flex>
                     {/* end::Daily Entry Header */}
                     <Divider />
                     <Box>
-                      {dailyTimeEntry.groupedTimeEntries.map(
-                        (groupedTimeEntry, index) => {
-                          const isLast =
-                            index ===
-                            dailyTimeEntry.groupedTimeEntries.length - 1;
-                          return (
-                            <>
-                              <Box p='2' key={groupedTimeEntry.id}>
-                                <Flex>
-                                  <HStack>
-                                    <Tag>
-                                      {groupedTimeEntry.timeEntries.length}
-                                    </Tag>
-                                    <Text>{groupedTimeEntry.description}</Text>
-                                  </HStack>
-                                  <Spacer />
-                                  <HStack>
-                                    <Text>
-                                      {formatDecimalTimeToDuration(
-                                        groupedTimeEntry.totalDescHours,
-                                        'hours'
-                                      )}
-                                    </Text>
-                                    <Tooltip
-                                      label='Click to copy'
-                                      aria-label='A tooltip'
-                                      placement='right'>
-                                      <Button size='sm'>
-                                        {groupedTimeEntry.totalDescHours.toFixed(
-                                          2
-                                        )}
-                                      </Button>
-                                    </Tooltip>
-                                  </HStack>
-                                </Flex>
-                              </Box>
-                              {!isLast && <Divider />}
-                            </>
-                          );
-                        }
-                      )}
+                      {dailyTimeEntry.groupedTimeEntries.map((groupedTimeEntry, index) => {
+                        const entryDuration = formatDecimalTimeToDuration(groupedTimeEntry.totalDescHours, "hours");
+                        const entryDecimal = groupedTimeEntry.totalDescHours.toFixed(2);
+                        const isLast = index === dailyTimeEntry.groupedTimeEntries.length - 1;
+                        return (
+                          <>
+                            <Box p="2" key={groupedTimeEntry.id}>
+                              <Flex>
+                                <HStack>
+                                  <Tag>{groupedTimeEntry.timeEntries.length}</Tag>
+                                  <Text>{groupedTimeEntry.description}</Text>
+                                </HStack>
+                                <Spacer />
+                                <HStack>
+                                  <Text>{entryDuration}</Text>
+                                  <Tooltip label="Click to copy" aria-label="A tooltip" placement="right">
+                                    <Button size="sm" onClick={() => onCopyToClipboard(entryDecimal)}>
+                                      {entryDecimal}
+                                    </Button>
+                                  </Tooltip>
+                                </HStack>
+                              </Flex>
+                            </Box>
+                            {!isLast && <Divider />}
+                          </>
+                        );
+                      })}
                     </Box>
                   </Box>
                 ))}
@@ -414,29 +329,20 @@ const Workspace = (props: Props) => {
               {/* end::Time Entries */}
             </>
           ) : (
-            <Alert
-              status='error'
-              variant='subtle'
-              flexDirection='column'
-              alignItems='center'
-              justifyContent='center'>
-              <AlertIcon boxSize='40px' mr={0} />
-              <AlertTitle mt={4} mb={1} fontSize='lg'>
+            <Alert status="error" variant="subtle" flexDirection="column" alignItems="center" justifyContent="center">
+              <AlertIcon boxSize="40px" mr={0} />
+              <AlertTitle mt={4} mb={1} fontSize="lg">
                 Failed to load page
               </AlertTitle>
-              <AlertDescription maxWidth='sm'>
+              <AlertDescription maxWidth="sm">
                 <UnorderedList>
-                  {props.user.status === 'failure' && (
-                    <ListItem>We could not get your Clockify profile</ListItem>
-                  )}
-                  {props.workspaces.status === 'failure' && (
-                    <ListItem>
-                      We could not get your Clockify workspaces
-                    </ListItem>
+                  {props.user.status === "failure" && <ListItem>We could not get your Clockify profile</ListItem>}
+                  {props.workspaces.status === "failure" && (
+                    <ListItem>We could not get your Clockify workspaces</ListItem>
                   )}
                 </UnorderedList>
               </AlertDescription>
-              <Button mt='6' onClick={() => router.replace('/')}>
+              <Button mt="6" onClick={() => router.replace("/")}>
                 Go back to login
               </Button>
             </Alert>
@@ -452,18 +358,13 @@ const Workspace = (props: Props) => {
             <ModalHeader>Edit hourly rate</ModalHeader>
             <ModalCloseButton />
             <ModalBody pb={6}>
-              <Input
-                name='rate'
-                type='number'
-                step='any'
-                placeholder='Enter your hourly rate'
-              />
+              <Input name="rate" type="number" step="any" placeholder="Enter your hourly rate" />
             </ModalBody>
             <ModalFooter>
-              <Button mr={3} type='submit'>
+              <Button mr={3} type="submit">
                 Save
               </Button>
-              <Button onClick={onClose} type='button'>
+              <Button onClick={onClose} type="button">
                 Cancel
               </Button>
             </ModalFooter>
@@ -476,13 +377,11 @@ const Workspace = (props: Props) => {
 };
 
 // This gets called on every request
-export async function getServerSideProps(
-  context: GetServerSidePropsContext
-): Promise<{ props: Props }> {
-  const baseUrl = 'https://api.clockify.me/api';
+export async function getServerSideProps(context: GetServerSidePropsContext): Promise<{ props: Props }> {
+  const baseUrl = "https://api.clockify.me/api";
   const init: RequestInit = {
     headers: {
-      'X-Api-Key': context.req.cookies[k.API_KEY_KEY],
+      "X-Api-Key": context.req.cookies[k.API_KEY_KEY],
     },
   };
 
@@ -492,19 +391,17 @@ export async function getServerSideProps(
   const workspacesResponse = await fetch(`${baseUrl}/v1/workspaces`, init);
   const workspaces = await workspacesResponse.json();
 
-  const initialHourlyRate = parseFloat(
-    context.req.cookies[k.HOURLY_RATE_KEY] || '0'
-  );
+  const initialHourlyRate = parseFloat(context.req.cookies[k.HOURLY_RATE_KEY] || "0");
 
   // Pass data to the page via props
   return {
     props: {
       user: {
-        status: user.code ? 'failure' : 'success',
+        status: user.code ? "failure" : "success",
         data: user,
       },
       workspaces: {
-        status: workspaces.code ? 'failure' : 'success',
+        status: workspaces.code ? "failure" : "success",
         data: workspaces,
       },
       initialHourlyRate,
