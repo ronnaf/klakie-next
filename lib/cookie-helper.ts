@@ -7,6 +7,7 @@ export const setCookie = (
 ) => {
   Cookies.set(name, value, {
     expires: 36500,
+    domain: window.location.hostname,
     ...options,
   });
 };

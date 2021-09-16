@@ -11,9 +11,9 @@ import {
 } from '@chakra-ui/icons';
 import {
   Box,
-  Center,
   Container,
   Flex,
+  Grid,
   HStack,
   Spacer,
   Text,
@@ -47,17 +47,34 @@ import { Select } from '@chakra-ui/select';
 import { Switch } from '@chakra-ui/switch';
 import { useToast } from '@chakra-ui/toast';
 import dayjs from 'dayjs';
+import Cookies from 'js-cookie';
 import _ from 'lodash';
 import { GetServerSidePropsContext } from 'next';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import numeral from 'numeral';
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { k } from '../lib/constants';
 import { setCookie } from '../lib/cookie-helper';
+import {
+  convertSecondsToHours,
+  formatSecondsToDuration,
+} from '../lib/duration-helper';
+import { ClockifyDetailedReport } from '../lib/models/clockify-detailed-report';
 import { ClockifyUser } from '../lib/models/clockify-user';
 import { ClockifyWorkspace } from '../lib/models/clockify-workspace';
 import { FailureData, SuccessData } from '../lib/models/data';
+import {
+  Stat,
+  StatLabel,
+  StatNumber,
+  StatHelpText,
+  StatArrow,
+  StatGroup,
+} from '@chakra-ui/react';
+import { calculateEarnings } from '../lib/earnings-helper';
+
+type Period = 'weekly' | 'semi-monthly';
 
 interface Props {
   user: SuccessData<ClockifyUser> | FailureData;
@@ -72,11 +89,53 @@ const Workspace = (props: Props) => {
   const router = useRouter();
   const toast = useToast();
 
+  const [report, setReport] = useState<ClockifyDetailedReport | null>(null);
+  const [period, setPeriod] = useState<Period>('weekly');
   const [hourlyRate, setHourlyRate] = useState(props.initialHourlyRate);
   const [range, setRange] = useState({
-    start: dayjs().startOf('week'),
-    end: dayjs().endOf('week'),
+    // dayjs start of week is Sunday, but clockify start of week is Monday
+    start: dayjs().utc().startOf('week').add(1, 'day'),
+    // dayjs end of week is Saturday, but clockify end of week is Sunday
+    end: dayjs().utc().endOf('week').add(1, 'day'),
   });
+  const [workspaceId, setWorkspace] = useState<string | null>(
+    props.user.status === 'success' ? props.user.data.defaultWorkspace : null
+  );
+
+  useEffect(() => {
+    (async () => {
+      const apiKey = Cookies.get(k.API_KEY_KEY);
+
+      if (!apiKey) {
+        return;
+      }
+
+      const baseUrl = 'https://reports.api.clockify.me';
+      const response = await fetch(
+        `${baseUrl}/workspaces/${workspaceId}/reports/detailed`,
+        {
+          method: 'POST',
+          headers: {
+            'X-Api-Key': apiKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            amountShown: 'HIDE_AMOUNT',
+            dateRangeStart: range.start.toJSON(),
+            dateRangeEnd: range.end.toJSON(),
+            detailedFilter: {
+              options: { totals: 'CALCULATE' },
+              pageSize: 50,
+              page: 1,
+            },
+          }),
+        }
+      );
+
+      const result = await response.json();
+      setReport(result);
+    })();
+  }, [range.end, range.start, workspaceId]);
 
   const onSaveHourlyRate = (e: React.SyntheticEvent) => {
     e.preventDefault();
@@ -98,8 +157,47 @@ const Workspace = (props: Props) => {
     onClose();
   };
 
+  const onNextRange = () => {
+    setRange((prevRange) => ({
+      start: prevRange.start.add(1, 'week'),
+      end: prevRange.end.add(1, 'week'),
+    }));
+  };
+
+  const onPrevRange = () => {
+    setRange((prevRange) => ({
+      start: prevRange.start.subtract(1, 'week'),
+      end: prevRange.end.subtract(1, 'week'),
+    }));
+  };
+
+  const reportStats = useMemo(
+    () => [
+      {
+        name: 'Total Time',
+        value: formatSecondsToDuration(report?.totals[0]?.totalTime || 0),
+      },
+      {
+        name: 'Total Earnings',
+        value: `₱${numeral(
+          calculateEarnings(report?.totals[0]?.totalTime || 0, hourlyRate)
+            .totalEarnings
+        ).format('0,0.00')}`,
+      },
+      {
+        name: 'Tax Withheld',
+        value: `₱${numeral(
+          calculateEarnings(report?.totals[0]?.totalTime || 0, hourlyRate)
+            .taxWithheld
+        ).format('0,0.00')}`,
+      },
+    ],
+    [hourlyRate, report?.totals]
+  );
+
   return (
     <>
+      {/* start::Head */}
       <Head>
         <title>Klakie - Workspace</title>
         <meta
@@ -108,6 +206,8 @@ const Workspace = (props: Props) => {
         />
         <link rel='icon' href='/favicon.ico' />
       </Head>
+      {/* end::Head */}
+      {/* start::Main Content */}
       <Box py='8'>
         <Container maxW='container.md'>
           {props.user.status === 'success' &&
@@ -116,7 +216,7 @@ const Workspace = (props: Props) => {
               {/* start::Header */}
               <Flex alignItems='center'>
                 <Box>
-                  <Select defaultValue={props.user.data.defaultWorkspace}>
+                  <Select defaultValue={workspaceId || ''}>
                     {props.workspaces.data.map((workspace) => (
                       <option key={workspace.id} value={workspace.id}>
                         {workspace.name}
@@ -154,7 +254,6 @@ const Workspace = (props: Props) => {
                 </Box>
               </Flex>
               {/* end::Header */}
-
               {/* start::Customizers */}
               <Flex alignItems='center' mt='8'>
                 <Box>
@@ -173,7 +272,9 @@ const Workspace = (props: Props) => {
                 <Spacer />
                 <Box>
                   <HStack>
-                    <Select>
+                    <Select
+                      value={period}
+                      onChange={(e) => setPeriod(e.target.value as Period)}>
                       <option value='semi-monthly'>Semi-monthly</option>
                       <option value='weekly'>Weekly</option>
                     </Select>
@@ -181,17 +282,39 @@ const Workspace = (props: Props) => {
                       <IconButton
                         aria-label='Previous date range'
                         icon={<ArrowBackIcon />}
+                        onClick={onPrevRange}
                       />
-                      <Button>This week</Button>
+                      <Button>
+                        {range.start.format('MMM DD')} -{' '}
+                        {range.end.format('MMM DD')}
+                      </Button>
                       <IconButton
                         aria-label='Next date range'
                         icon={<ArrowForwardIcon />}
+                        onClick={onNextRange}
                       />
                     </ButtonGroup>
                   </HStack>
                 </Box>
               </Flex>
               {/* end::Customizers */}
+              {/* start::Report Stats */}
+              <Grid templateColumns='repeat(3, 1fr)' gap={3} my='6'>
+                {reportStats.map((stat) => (
+                  <Box
+                    key={stat.name}
+                    w='100%'
+                    p='4'
+                    bg='whiteAlpha.200'
+                    borderRadius='md'>
+                    <Stat>
+                      <StatLabel>{stat.name}</StatLabel>
+                      <StatNumber>{stat.value}</StatNumber>
+                    </Stat>
+                  </Box>
+                ))}
+              </Grid>
+              {/* end::Report Stats */}
             </>
           ) : (
             <Alert
@@ -223,7 +346,8 @@ const Workspace = (props: Props) => {
           )}
         </Container>
       </Box>
-
+      {/* end::Main Content */}
+      {/* start::Modal */}
       <Modal isOpen={isOpen} onClose={onClose}>
         <form onSubmit={onSaveHourlyRate}>
           <ModalOverlay />
@@ -249,6 +373,7 @@ const Workspace = (props: Props) => {
           </ModalContent>
         </form>
       </Modal>
+      {/* end::Modal */}
     </>
   );
 };

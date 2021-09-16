@@ -1,7 +1,12 @@
-import '../styles/globals.css';
-import type { AppProps } from 'next/app';
 import { ChakraProvider } from '@chakra-ui/react';
-import { useAuth } from '../lib/hooks/useAuth';
+import dayjs from 'dayjs';
+import duration from 'dayjs/plugin/duration';
+import utc from 'dayjs/plugin/utc';
+import type { AppProps } from 'next/app';
+import '../styles/globals.css';
+
+dayjs.extend(utc);
+dayjs.extend(duration);
 
 function MyApp({ Component, pageProps }: AppProps) {
   return (
