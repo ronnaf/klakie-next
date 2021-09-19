@@ -1,94 +1,480 @@
-import { Button } from "@chakra-ui/button";
-import { useColorMode } from "@chakra-ui/color-mode";
-import { Box, Center, Container, Heading, Stack, VStack } from "@chakra-ui/layout";
+import { Avatar } from "@chakra-ui/avatar";
+import { Button, ButtonGroup } from "@chakra-ui/button";
+import { useColorMode, useColorModeValue } from "@chakra-ui/color-mode";
+import { useDisclosure } from "@chakra-ui/hooks";
+import { ArrowBackIcon, ArrowForwardIcon, EditIcon, ExternalLinkIcon, SettingsIcon } from "@chakra-ui/icons";
+import { Badge, Box, Container, Divider, Flex, Grid, HStack, Spacer, Text } from "@chakra-ui/layout";
+import { Menu, MenuButton, MenuDivider, MenuGroup, MenuItem, MenuList } from "@chakra-ui/menu";
+import {
+  Alert,
+  AlertDescription,
+  AlertIcon,
+  AlertTitle,
+  IconButton,
+  Input,
+  ListItem,
+  Modal,
+  ModalBody,
+  ModalCloseButton,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  ModalOverlay,
+  Spinner,
+  Stat,
+  StatLabel,
+  StatNumber,
+  Tag,
+  Tooltip,
+  UnorderedList,
+} from "@chakra-ui/react";
+import { Select } from "@chakra-ui/select";
 import { Switch } from "@chakra-ui/switch";
-import { Textarea } from "@chakra-ui/textarea";
 import { useToast } from "@chakra-ui/toast";
-import type { NextPage } from "next";
-import { useRouter } from "next/dist/client/router";
+import dayjs from "dayjs";
+import Cookies from "js-cookie";
+import _ from "lodash";
+import { GetServerSidePropsContext } from "next";
 import Head from "next/head";
-import React from "react";
+import { useRouter } from "next/router";
+import numeral from "numeral";
+import React, { useEffect, useMemo, useState } from "react";
 import { k } from "../lib/constants";
+import { copyToClipboard } from "../lib/helpers/clipboard-helper";
 import { setCookie } from "../lib/helpers/cookie-helper";
+import { convertSecondsToHours, formatDecimalTimeToDuration } from "../lib/helpers/duration-helper";
+import { calculateEarnings } from "../lib/helpers/earnings-helper";
+import { getDailyTimeEntries } from "../lib/helpers/entries-helper";
+import { ClockifyDetailedReport } from "../lib/models/clockify-detailed-report";
+import { ClockifyUser } from "../lib/models/clockify-user";
+import { ClockifyWorkspace } from "../lib/models/clockify-workspace";
+import { ResponseData } from "../lib/models/response-data";
+import { clockifyApiService } from "../lib/services/clockify-api-service";
 
-const Home: NextPage = () => {
+type Period = "weekly" | "semi-monthly";
+
+interface Props {
+  user: ResponseData<ClockifyUser>;
+  workspaces: ResponseData<ClockifyWorkspace[]>;
+  initialHourlyRate: number;
+}
+
+const Index = (props: Props) => {
   const { colorMode, toggleColorMode } = useColorMode();
+  const { isOpen, onOpen, onClose } = useDisclosure();
+
+  const statBg = useColorModeValue("gray.100", "whiteAlpha.200");
+  const entriesBoxBorder = useColorModeValue("gray.200", "whiteAlpha.300");
+  const entriesHeaderBg = useColorModeValue("gray.50", "whiteAlpha.50");
 
   const router = useRouter();
   const toast = useToast();
 
-  const onSubmit = async (e: React.SyntheticEvent) => {
+  const [loading, setLoading] = useState(false);
+  const [report, setReport] = useState<ClockifyDetailedReport | null>(null);
+  const [period, setPeriod] = useState<Period>("weekly");
+  const [hourlyRate, setHourlyRate] = useState(props.initialHourlyRate);
+  const [range, setRange] = useState({
+    // dayjs start of week is Sunday, but clockify start of week is Monday
+    start: dayjs().utc().startOf("week").add(1, "day"),
+    // dayjs end of week is Saturday, but clockify end of week is Sunday
+    end: dayjs().utc().endOf("week").add(1, "day"),
+  });
+  const [workspaceId, setWorkspace] = useState<string | null>(
+    props.user.status === "success" ? props.user.data.defaultWorkspace : null
+  );
+
+  // Listens to changes in [range] and updates the report data accordingly
+  useEffect(() => {
+    (async () => {
+      if (!workspaceId) {
+        return;
+      }
+
+      setLoading(true);
+      const report = await clockifyApiService.getDetailedReport(
+        { range: { start: range.start.toDate(), end: range.end.toDate() }, workspaceId: workspaceId },
+        { apiKey: Cookies.get(k.API_KEY_KEY) || "" }
+      );
+      setLoading(false);
+
+      if (report.status === "success") {
+        setReport(report.data);
+      }
+    })();
+  }, [range.end, range.start, workspaceId]);
+
+  // Listens to changes in [period] and updates the range accordingly
+  useEffect(() => {
+    if (period === "semi-monthly") {
+      setRange((prevRange) => {
+        const start = prevRange.start;
+        const fifteenth = dayjs.utc([start.year(), start.month(), 15]);
+        return start.date() < 15
+          ? { start: start.startOf("month"), end: fifteenth.endOf("date") }
+          : { start: fifteenth.add(1, "day").startOf("date"), end: start.endOf("month") };
+      });
+    } else {
+      setRange((prevRange) => ({
+        start: prevRange.start.startOf("week").add(1, "day"),
+        end: prevRange.start.endOf("week").add(1, "day"),
+      }));
+    }
+  }, [period]);
+
+  const onSaveHourlyRate = (e: React.SyntheticEvent) => {
     e.preventDefault();
 
     const target = e.target as typeof e.target & {
-      apiKey: { value: string };
+      rate: { value: number };
     };
 
-    if (!target.apiKey.value.trim()) {
+    if (!target.rate.value) {
       return toast({
         title: "It's blank, you dumbass.",
         status: "error",
       });
     }
 
-    setCookie(k.API_KEY_KEY, target.apiKey.value);
-    router.push("/dashboard");
+    setCookie(k.HOURLY_RATE_KEY, target.rate.value.toString());
+    setHourlyRate(target.rate.value);
+
+    onClose();
   };
+
+  const onNextRange = () => {
+    if (period === "weekly") {
+      setRange((prevRange) => ({
+        start: prevRange.start.add(1, "week").startOf("date"),
+        end: prevRange.end.add(1, "week").endOf("date"),
+      }));
+    } else {
+      setRange((prevRange) => {
+        const newStart = prevRange.end.add(1, "day");
+        const fifteenth = dayjs.utc([newStart.year(), newStart.month(), 15]);
+        const newEnd = newStart.date() > 15 ? newStart.endOf("month") : fifteenth;
+        return {
+          start: newStart.startOf("date"),
+          end: newEnd.endOf("date"),
+        };
+      });
+    }
+  };
+
+  const onPrevRange = () => {
+    if (period === "weekly") {
+      setRange((prevRange) => ({
+        start: prevRange.start.subtract(1, "week").startOf("date"),
+        end: prevRange.end.subtract(1, "week").endOf("date"),
+      }));
+    } else {
+      setRange((prevRange) => {
+        const newEnd = prevRange.start.subtract(1, "day");
+        const sixteenth = dayjs.utc([newEnd.year(), newEnd.month(), 16]);
+        const newStart = newEnd.date() > 15 ? sixteenth : newEnd.startOf("month");
+        return {
+          start: newStart.startOf("date"),
+          end: newEnd.endOf("date"),
+        };
+      });
+    }
+  };
+
+  const onCopyToClipboard = (duration: string) => {
+    copyToClipboard(duration.toString());
+    toast({
+      title: "Copied to clipboard!",
+      status: "success",
+    });
+  };
+
+  const onLogout = () => {
+    Cookies.remove(k.API_KEY_KEY);
+    Cookies.remove(k.HOURLY_RATE_KEY);
+    router.replace("/login");
+  };
+
+  const reportStats = useMemo(() => {
+    const totalTimeInHours = convertSecondsToHours(report?.totals?.[0]?.totalTime || 0);
+    const calculatedEarnings = calculateEarnings(totalTimeInHours, hourlyRate);
+    return [
+      {
+        name: "Total Time",
+        value: formatDecimalTimeToDuration(report?.totals?.[0]?.totalTime || 0, "seconds"),
+      },
+      {
+        name: "Total Earnings",
+        value: `₱${numeral(calculatedEarnings.totalEarnings).format("0,0.00")}`,
+      },
+      {
+        name: "Tax Withheld",
+        value: `₱${numeral(calculatedEarnings.taxWithheld).format("0,0.00")}`,
+      },
+    ];
+  }, [hourlyRate, report?.totals]);
+
+  const dailyTimeEntries = useMemo(() => {
+    return getDailyTimeEntries(report?.timeentries || []);
+  }, [report?.timeentries]);
 
   return (
     <>
+      {/* begin::Head */}
       <Head>
-        <title>Klakie</title>
+        <title>Klakie - Workspace</title>
         <meta name="description" content="Easily track your time entries from Clockify." />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <Box h="100vh" pos="relative">
-        <VStack pos="absolute" top="4" right="4">
-          <Switch isChecked={colorMode === "dark"} onChange={toggleColorMode} />
-        </VStack>
-        <Container pos="absolute" top="45%" left="50%" transform="translate(-50%, -50%)">
-          <Center>
-            <Heading as="h1" size="lg">
-              klakie
-            </Heading>
-          </Center>
-          <Box mt="4" boxShadow="xl" p="8">
-            <form onSubmit={onSubmit}>
-              <Stack spacing="8">
-                <Stack spacing="4">
-                  <Center>
-                    <Heading as="h2" size="sm">
-                      Enter your Clockify API key:
-                    </Heading>
-                  </Center>
-                  <Textarea name="apiKey" placeholder="Paste your API key here" />
-                </Stack>
-                <Stack spacing="4">
-                  <Center>
-                    <Button type="submit" w="full" size="lg">
-                      Continue
-                    </Button>
-                  </Center>
-                  <Center>
-                    <Button
-                      as="a"
-                      type="button"
-                      variant="link"
-                      href="https://clockify.me/user/settings"
-                      target="_blank"
-                      rel="noreferrer noopener"
-                    >
-                      I can&apos;t find my API key
-                    </Button>
-                  </Center>
-                </Stack>
-              </Stack>
-            </form>
-          </Box>
+      {/* end::Head */}
+      {/* begin::Main Content */}
+      <Box py="8">
+        <Container maxW="container.md">
+          {props.user.status === "success" && props.workspaces.status === "success" ? (
+            <>
+              {/* begin::Header */}
+              <Flex alignItems="center">
+                <Box>
+                  <Select
+                    disabled={loading}
+                    defaultValue={workspaceId || ""}
+                    onChange={(e) => setWorkspace(e.target.value)}
+                  >
+                    {props.workspaces.data.map((workspace) => (
+                      <option key={workspace.id} value={workspace.id}>
+                        {workspace.name}
+                      </option>
+                    ))}
+                  </Select>
+                </Box>
+                <Spacer />
+                <Box>
+                  <HStack spacing="4">
+                    <Text>Hi, {props.user.data.name.split(" ")[0]}!</Text>
+                    <Menu placement="bottom-end" closeOnSelect={false}>
+                      <MenuButton
+                        as={Avatar}
+                        cursor="pointer"
+                        name={props.user.data.name}
+                        src={props.user.data.profilePicture}
+                      />
+                      <MenuList>
+                        <MenuGroup title="Color mode">
+                          <MenuItem>
+                            <Switch mr="3" isChecked={colorMode === "dark"} onChange={toggleColorMode} />
+                            <span>{_.startCase(colorMode)} mode</span>
+                          </MenuItem>
+                        </MenuGroup>
+                        <MenuDivider />
+                        <MenuItem icon={<SettingsIcon />}>Settings</MenuItem>
+                        <MenuItem icon={<ExternalLinkIcon />} onClick={onLogout}>
+                          Log out
+                        </MenuItem>
+                      </MenuList>
+                    </Menu>
+                  </HStack>
+                </Box>
+              </Flex>
+              {/* end::Header */}
+              {/* begin::Customizers */}
+              <Flex alignItems="center" mt="8">
+                <Box>
+                  <HStack>
+                    <Text as="kbd" fontWeight="bold" fontSize="lg">
+                      ₱{numeral(hourlyRate).format("0,0.00")} /hr
+                    </Text>
+                    <IconButton
+                      disabled={loading}
+                      aria-label="Edit hourly rate"
+                      variant="ghost"
+                      icon={<EditIcon />}
+                      onClick={onOpen}
+                    />
+                  </HStack>
+                </Box>
+                <Spacer />
+                <Box>
+                  <HStack>
+                    {loading && (
+                      <Box>
+                        <Spinner />
+                      </Box>
+                    )}
+                    <Select disabled={loading} value={period} onChange={(e) => setPeriod(e.target.value as Period)}>
+                      <option value="semi-monthly">Semi-monthly</option>
+                      <option value="weekly">Weekly</option>
+                    </Select>
+                    <ButtonGroup isAttached>
+                      <IconButton
+                        disabled={loading}
+                        aria-label="Previous date range"
+                        icon={<ArrowBackIcon />}
+                        onClick={onPrevRange}
+                      />
+                      <Button>
+                        {range.start.format("MMM DD")} - {range.end.format("MMM DD")}
+                      </Button>
+                      <IconButton
+                        disabled={loading}
+                        aria-label="Next date range"
+                        icon={<ArrowForwardIcon />}
+                        onClick={onNextRange}
+                      />
+                    </ButtonGroup>
+                  </HStack>
+                </Box>
+              </Flex>
+              {/* end::Customizers */}
+              {/* begin::Report Stats */}
+              <Grid templateColumns="repeat(3, 1fr)" gap={3} my="6">
+                {reportStats.map((stat) => (
+                  <Box key={stat.name} w="100%" p="4" bg={statBg} borderRadius="md">
+                    <Stat>
+                      <StatLabel>{stat.name}</StatLabel>
+                      <StatNumber>{stat.value}</StatNumber>
+                    </Stat>
+                  </Box>
+                ))}
+              </Grid>
+              {/* end::Report Stats */}
+              {/* begin::Time Entries */}
+              <Box>
+                {dailyTimeEntries.map((dailyTimeEntry) => (
+                  <Box
+                    key={dailyTimeEntry.dateStarted}
+                    my="6"
+                    border="1px"
+                    borderColor={entriesBoxBorder}
+                    borderRadius="md"
+                  >
+                    {/* begin::Daily Entry Header */}
+                    <Flex p="2" bg={entriesHeaderBg}>
+                      <HStack>
+                        <Text>{dayjs(dailyTimeEntry.dateStarted).format("MMMM DD")}</Text>
+                        <Tag>{dayjs(dailyTimeEntry.dateStarted).format("dddd")}</Tag>
+                      </HStack>
+                      <Spacer />
+                      <HStack>
+                        <Text>{formatDecimalTimeToDuration(dailyTimeEntry.totalDayHours, "hours")}</Text>
+                        <Divider orientation="vertical" />
+                        <Text>{dailyTimeEntry.totalDayHours.toFixed(2)}</Text>
+                        <Divider orientation="vertical" />
+                        <Badge>
+                          ₱
+                          {numeral(calculateEarnings(dailyTimeEntry.totalDayHours, hourlyRate).totalEarnings).format(
+                            "0,0.00"
+                          )}
+                        </Badge>
+                      </HStack>
+                    </Flex>
+                    {/* end::Daily Entry Header */}
+                    <Divider />
+                    <Box>
+                      {dailyTimeEntry.groupedTimeEntries.map((groupedTimeEntry, index) => {
+                        const entryDuration = formatDecimalTimeToDuration(groupedTimeEntry.totalDescHours, "hours");
+                        const entryDecimal = groupedTimeEntry.totalDescHours.toFixed(2);
+                        const isLast = index === dailyTimeEntry.groupedTimeEntries.length - 1;
+                        return (
+                          <>
+                            <Box p="2" key={groupedTimeEntry.id}>
+                              <Flex>
+                                <HStack>
+                                  <Tag>{groupedTimeEntry.timeEntries.length}</Tag>
+                                  <Text>{groupedTimeEntry.description}</Text>
+                                </HStack>
+                                <Spacer />
+                                <HStack>
+                                  <Text>{entryDuration}</Text>
+                                  <Tooltip label="Click to copy" aria-label="A tooltip" placement="right">
+                                    <Button size="sm" onClick={() => onCopyToClipboard(entryDecimal)}>
+                                      {entryDecimal}
+                                    </Button>
+                                  </Tooltip>
+                                </HStack>
+                              </Flex>
+                            </Box>
+                            {!isLast && <Divider />}
+                          </>
+                        );
+                      })}
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+              {/* end::Time Entries */}
+            </>
+          ) : (
+            <Alert status="error" variant="subtle" flexDirection="column" alignItems="center" justifyContent="center">
+              <AlertIcon boxSize="40px" mr={0} />
+              <AlertTitle mt={4} mb={1} fontSize="lg">
+                Failed to load page
+              </AlertTitle>
+              <AlertDescription maxWidth="sm">
+                <UnorderedList>
+                  {props.user.status === "failure" && <ListItem>We could not get your Clockify profile</ListItem>}
+                  {props.workspaces.status === "failure" && (
+                    <ListItem>We could not get your Clockify workspaces</ListItem>
+                  )}
+                </UnorderedList>
+              </AlertDescription>
+              <Button mt="6" onClick={() => router.replace("/login")}>
+                Go back to login
+              </Button>
+            </Alert>
+          )}
         </Container>
       </Box>
+      {/* end::Main Content */}
+      {/* begin::Modal */}
+      <Modal isOpen={isOpen} onClose={onClose}>
+        <form onSubmit={onSaveHourlyRate}>
+          <ModalOverlay />
+          <ModalContent>
+            <ModalHeader>Edit hourly rate</ModalHeader>
+            <ModalCloseButton />
+            <ModalBody pb={6}>
+              <Input name="rate" type="number" step="any" placeholder="Enter your hourly rate" />
+            </ModalBody>
+            <ModalFooter>
+              <Button mr={3} type="submit">
+                Save
+              </Button>
+              <Button onClick={onClose} type="button">
+                Cancel
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </form>
+      </Modal>
+      {/* end::Modal */}
     </>
   );
 };
 
-export default Home;
+// This gets called on every request
+export async function getServerSideProps(context: GetServerSidePropsContext) {
+  const apiKey = context.req.cookies[k.API_KEY_KEY];
+
+  if (!apiKey) {
+    return {
+      redirect: {
+        destination: "/login",
+        permanent: false,
+      },
+    };
+  }
+
+  const user = await clockifyApiService.getCurrentUser(null, { apiKey });
+  const workspaces = await clockifyApiService.getCurrentWorkspaces(null, { apiKey });
+  const initialHourlyRate = parseFloat(context.req.cookies[k.HOURLY_RATE_KEY] || "0");
+
+  // Pass data to the page via props
+  return {
+    props: {
+      user: user,
+      workspaces: workspaces,
+      initialHourlyRate,
+    },
+  };
+}
+
+export default Index;
