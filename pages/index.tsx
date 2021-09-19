@@ -1,10 +1,7 @@
-import { Avatar } from "@chakra-ui/avatar";
 import { Button, ButtonGroup } from "@chakra-ui/button";
-import { useColorMode, useColorModeValue } from "@chakra-ui/color-mode";
 import { useDisclosure } from "@chakra-ui/hooks";
-import { ArrowBackIcon, ArrowForwardIcon, EditIcon, ExternalLinkIcon, SettingsIcon } from "@chakra-ui/icons";
-import { Badge, Box, Container, Divider, Flex, Grid, HStack, Spacer, Text } from "@chakra-ui/layout";
-import { Menu, MenuButton, MenuDivider, MenuGroup, MenuItem, MenuList } from "@chakra-ui/menu";
+import { ArrowBackIcon, ArrowForwardIcon, EditIcon } from "@chakra-ui/icons";
+import { Box, Container, Flex, Grid, HStack, Spacer, Text } from "@chakra-ui/layout";
 import {
   Alert,
   AlertDescription,
@@ -21,26 +18,21 @@ import {
   ModalHeader,
   ModalOverlay,
   Spinner,
-  Stat,
-  StatLabel,
-  StatNumber,
-  Tag,
-  Tooltip,
   UnorderedList,
 } from "@chakra-ui/react";
 import { Select } from "@chakra-ui/select";
-import { Switch } from "@chakra-ui/switch";
 import { useToast } from "@chakra-ui/toast";
 import dayjs from "dayjs";
 import Cookies from "js-cookie";
-import _ from "lodash";
 import { GetServerSidePropsContext } from "next";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import numeral from "numeral";
 import React, { useEffect, useMemo, useState } from "react";
+import { DailyEntriesBox } from "../components/daily-entries-box";
+import { DashboardHeader } from "../components/dashboard-header";
+import { StatBox } from "../components/stat-box";
 import { k } from "../lib/constants";
-import { copyToClipboard } from "../lib/helpers/clipboard-helper";
 import { setCookie } from "../lib/helpers/cookie-helper";
 import { convertSecondsToHours, formatDecimalTimeToDuration } from "../lib/helpers/duration-helper";
 import { calculateEarnings } from "../lib/helpers/earnings-helper";
@@ -48,10 +40,9 @@ import { getDailyTimeEntries } from "../lib/helpers/entries-helper";
 import { ClockifyDetailedReport } from "../lib/models/clockify-detailed-report";
 import { ClockifyUser } from "../lib/models/clockify-user";
 import { ClockifyWorkspace } from "../lib/models/clockify-workspace";
+import { Period } from "../lib/models/period";
 import { ResponseData } from "../lib/models/response-data";
 import { clockifyApiService } from "../lib/services/clockify-api-service";
-
-type Period = "weekly" | "semi-monthly";
 
 interface Props {
   user: ResponseData<ClockifyUser>;
@@ -60,12 +51,7 @@ interface Props {
 }
 
 const Index = (props: Props) => {
-  const { colorMode, toggleColorMode } = useColorMode();
   const { isOpen, onOpen, onClose } = useDisclosure();
-
-  const statBg = useColorModeValue("gray.100", "whiteAlpha.200");
-  const entriesBoxBorder = useColorModeValue("gray.200", "whiteAlpha.300");
-  const entriesHeaderBg = useColorModeValue("gray.50", "whiteAlpha.50");
 
   const router = useRouter();
   const toast = useToast();
@@ -180,20 +166,6 @@ const Index = (props: Props) => {
     }
   };
 
-  const onCopyToClipboard = (duration: string) => {
-    copyToClipboard(duration.toString());
-    toast({
-      title: "Copied to clipboard!",
-      status: "success",
-    });
-  };
-
-  const onLogout = () => {
-    Cookies.remove(k.API_KEY_KEY);
-    Cookies.remove(k.HOURLY_RATE_KEY);
-    router.replace("/login");
-  };
-
   const reportStats = useMemo(() => {
     const totalTimeInHours = convertSecondsToHours(report?.totals?.[0]?.totalTime || 0);
     const calculatedEarnings = calculateEarnings(totalTimeInHours, hourlyRate);
@@ -232,48 +204,12 @@ const Index = (props: Props) => {
           {props.user.status === "success" && props.workspaces.status === "success" ? (
             <>
               {/* begin::Header */}
-              <Flex alignItems="center">
-                <Box>
-                  <Select
-                    disabled={loading}
-                    defaultValue={workspaceId || ""}
-                    onChange={(e) => setWorkspace(e.target.value)}
-                  >
-                    {props.workspaces.data.map((workspace) => (
-                      <option key={workspace.id} value={workspace.id}>
-                        {workspace.name}
-                      </option>
-                    ))}
-                  </Select>
-                </Box>
-                <Spacer />
-                <Box>
-                  <HStack spacing="4">
-                    <Text>Hi, {props.user.data.name.split(" ")[0]}!</Text>
-                    <Menu placement="bottom-end" closeOnSelect={false}>
-                      <MenuButton
-                        as={Avatar}
-                        cursor="pointer"
-                        name={props.user.data.name}
-                        src={props.user.data.profilePicture}
-                      />
-                      <MenuList>
-                        <MenuGroup title="Color mode">
-                          <MenuItem>
-                            <Switch mr="3" isChecked={colorMode === "dark"} onChange={toggleColorMode} />
-                            <span>{_.startCase(colorMode)} mode</span>
-                          </MenuItem>
-                        </MenuGroup>
-                        <MenuDivider />
-                        <MenuItem icon={<SettingsIcon />}>Settings</MenuItem>
-                        <MenuItem icon={<ExternalLinkIcon />} onClick={onLogout}>
-                          Log out
-                        </MenuItem>
-                      </MenuList>
-                    </Menu>
-                  </HStack>
-                </Box>
-              </Flex>
+              <DashboardHeader
+                loading={loading}
+                user={props.user.data}
+                workspaces={props.workspaces.data}
+                onWorkspaceChange={setWorkspace}
+              />
               {/* end::Header */}
               {/* begin::Customizers */}
               <Flex alignItems="center" mt="8">
@@ -327,77 +263,18 @@ const Index = (props: Props) => {
               {/* begin::Report Stats */}
               <Grid templateColumns="repeat(3, 1fr)" gap={3} my="6">
                 {reportStats.map((stat) => (
-                  <Box key={stat.name} w="100%" p="4" bg={statBg} borderRadius="md">
-                    <Stat>
-                      <StatLabel>{stat.name}</StatLabel>
-                      <StatNumber>{stat.value}</StatNumber>
-                    </Stat>
-                  </Box>
+                  <StatBox key={stat.name} name={stat.name} value={stat.value} />
                 ))}
               </Grid>
               {/* end::Report Stats */}
               {/* begin::Time Entries */}
               <Box>
                 {dailyTimeEntries.map((dailyTimeEntry) => (
-                  <Box
+                  <DailyEntriesBox
                     key={dailyTimeEntry.dateStarted}
-                    my="6"
-                    border="1px"
-                    borderColor={entriesBoxBorder}
-                    borderRadius="md"
-                  >
-                    {/* begin::Daily Entry Header */}
-                    <Flex p="2" bg={entriesHeaderBg}>
-                      <HStack>
-                        <Text>{dayjs(dailyTimeEntry.dateStarted).format("MMMM DD")}</Text>
-                        <Tag>{dayjs(dailyTimeEntry.dateStarted).format("dddd")}</Tag>
-                      </HStack>
-                      <Spacer />
-                      <HStack>
-                        <Text>{formatDecimalTimeToDuration(dailyTimeEntry.totalDayHours, "hours")}</Text>
-                        <Divider orientation="vertical" />
-                        <Text>{dailyTimeEntry.totalDayHours.toFixed(2)}</Text>
-                        <Divider orientation="vertical" />
-                        <Badge>
-                          ₱
-                          {numeral(calculateEarnings(dailyTimeEntry.totalDayHours, hourlyRate).totalEarnings).format(
-                            "0,0.00"
-                          )}
-                        </Badge>
-                      </HStack>
-                    </Flex>
-                    {/* end::Daily Entry Header */}
-                    <Divider />
-                    <Box>
-                      {dailyTimeEntry.groupedTimeEntries.map((groupedTimeEntry, index) => {
-                        const entryDuration = formatDecimalTimeToDuration(groupedTimeEntry.totalDescHours, "hours");
-                        const entryDecimal = groupedTimeEntry.totalDescHours.toFixed(2);
-                        const isLast = index === dailyTimeEntry.groupedTimeEntries.length - 1;
-                        return (
-                          <>
-                            <Box p="2" key={groupedTimeEntry.id}>
-                              <Flex>
-                                <HStack>
-                                  <Tag>{groupedTimeEntry.timeEntries.length}</Tag>
-                                  <Text>{groupedTimeEntry.description}</Text>
-                                </HStack>
-                                <Spacer />
-                                <HStack>
-                                  <Text>{entryDuration}</Text>
-                                  <Tooltip label="Click to copy" aria-label="A tooltip" placement="right">
-                                    <Button size="sm" onClick={() => onCopyToClipboard(entryDecimal)}>
-                                      {entryDecimal}
-                                    </Button>
-                                  </Tooltip>
-                                </HStack>
-                              </Flex>
-                            </Box>
-                            {!isLast && <Divider />}
-                          </>
-                        );
-                      })}
-                    </Box>
-                  </Box>
+                    dailyTimeEntry={dailyTimeEntry}
+                    hourlyRate={hourlyRate}
+                  />
                 ))}
               </Box>
               {/* end::Time Entries */}
@@ -424,7 +301,7 @@ const Index = (props: Props) => {
         </Container>
       </Box>
       {/* end::Main Content */}
-      {/* begin::Modal */}
+      {/* begin::Hourly Rate Modal */}
       <Modal isOpen={isOpen} onClose={onClose}>
         <form onSubmit={onSaveHourlyRate}>
           <ModalOverlay />
@@ -445,7 +322,7 @@ const Index = (props: Props) => {
           </ModalContent>
         </form>
       </Modal>
-      {/* end::Modal */}
+      {/* end::Hourly Rate Modal */}
     </>
   );
 };
