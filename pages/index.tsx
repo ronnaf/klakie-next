@@ -1,6 +1,6 @@
 import { Button, ButtonGroup } from "@chakra-ui/button";
 import { useDisclosure } from "@chakra-ui/hooks";
-import { ArrowBackIcon, ArrowForwardIcon, EditIcon } from "@chakra-ui/icons";
+import { ArrowBackIcon, ArrowForwardIcon, EditIcon, ViewIcon } from "@chakra-ui/icons";
 import { Box, Container, Flex, Grid, HStack, Spacer, Text } from "@chakra-ui/layout";
 import {
   Alert,
@@ -8,17 +8,11 @@ import {
   AlertIcon,
   AlertTitle,
   IconButton,
-  Input,
   ListItem,
-  Modal,
-  ModalBody,
-  ModalCloseButton,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  ModalOverlay,
   Spinner,
   UnorderedList,
+  Icon,
+  Tooltip,
 } from "@chakra-ui/react";
 import { Select } from "@chakra-ui/select";
 import { useToast } from "@chakra-ui/toast";
@@ -31,6 +25,8 @@ import numeral from "numeral";
 import React, { useEffect, useMemo, useState } from "react";
 import { DailyEntriesBox } from "../components/daily-entries-box";
 import { DashboardHeader } from "../components/dashboard-header";
+import { HourlyRateModal } from "../components/hourly-rate-modal";
+import { InvoicePdfModal } from "../components/invoice-pdf-modal";
 import { StatBox } from "../components/stat-box";
 import { k } from "../lib/constants";
 import { setCookie } from "../lib/helpers/cookie-helper";
@@ -43,6 +39,7 @@ import { ClockifyWorkspace } from "../lib/models/clockify-workspace";
 import { Period } from "../lib/models/period";
 import { ResponseData } from "../lib/models/response-data";
 import { clockifyApiService } from "../lib/services/clockify-api-service";
+import { IoReceiptOutline } from "react-icons/io5";
 
 interface Props {
   user: ResponseData<ClockifyUser>;
@@ -51,7 +48,16 @@ interface Props {
 }
 
 const Index = (props: Props) => {
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const {
+    isOpen: isHourRateModalOpen,
+    onOpen: onHourlyRateModalOpen,
+    onClose: onHourlyRateModalClose,
+  } = useDisclosure();
+  const {
+    isOpen: isInvoiceModalOpen,
+    onOpen: onInvoiceModalOpen,
+    onClose: onInvoiceModalClose,
+  } = useDisclosure();
 
   const router = useRouter();
   const toast = useToast();
@@ -79,7 +85,10 @@ const Index = (props: Props) => {
 
       setLoading(true);
       const report = await clockifyApiService.getDetailedReport(
-        { range: { start: range.start.toDate(), end: range.end.toDate() }, workspaceId: workspaceId },
+        {
+          range: { start: range.start.toDate(), end: range.end.toDate() },
+          workspaceId: workspaceId,
+        },
         { apiKey: Cookies.get(k.API_KEY_KEY) || "" }
       );
       setLoading(false);
@@ -125,7 +134,7 @@ const Index = (props: Props) => {
     setCookie(k.HOURLY_RATE_KEY, target.rate.value.toString());
     setHourlyRate(target.rate.value);
 
-    onClose();
+    onHourlyRateModalClose();
   };
 
   const onNextRange = () => {
@@ -223,7 +232,7 @@ const Index = (props: Props) => {
                       aria-label="Edit hourly rate"
                       variant="ghost"
                       icon={<EditIcon />}
-                      onClick={onOpen}
+                      onClick={onHourlyRateModalOpen}
                     />
                   </HStack>
                 </Box>
@@ -235,7 +244,21 @@ const Index = (props: Props) => {
                         <Spinner />
                       </Box>
                     )}
-                    <Select disabled={loading} value={period} onChange={(e) => setPeriod(e.target.value as Period)}>
+                    <Box>
+                      <Tooltip label="View invoice">
+                        <IconButton
+                          aria-label="View invoice"
+                          icon={<Icon as={IoReceiptOutline} />}
+                          variant="outline"
+                          onClick={onInvoiceModalOpen}
+                        />
+                      </Tooltip>
+                    </Box>
+                    <Select
+                      disabled={loading}
+                      value={period}
+                      onChange={(e) => setPeriod(e.target.value as Period)}
+                    >
                       <option value="semi-monthly">Semi-monthly</option>
                       <option value="weekly">Weekly</option>
                     </Select>
@@ -280,14 +303,22 @@ const Index = (props: Props) => {
               {/* end::Time Entries */}
             </>
           ) : (
-            <Alert status="error" variant="subtle" flexDirection="column" alignItems="center" justifyContent="center">
+            <Alert
+              status="error"
+              variant="subtle"
+              flexDirection="column"
+              alignItems="center"
+              justifyContent="center"
+            >
               <AlertIcon boxSize="40px" mr={0} />
               <AlertTitle mt={4} mb={1} fontSize="lg">
                 Failed to load page
               </AlertTitle>
               <AlertDescription maxWidth="sm">
                 <UnorderedList>
-                  {props.user.status === "failure" && <ListItem>We could not get your Clockify profile</ListItem>}
+                  {props.user.status === "failure" && (
+                    <ListItem>We could not get your Clockify profile</ListItem>
+                  )}
                   {props.workspaces.status === "failure" && (
                     <ListItem>We could not get your Clockify workspaces</ListItem>
                   )}
@@ -302,27 +333,15 @@ const Index = (props: Props) => {
       </Box>
       {/* end::Main Content */}
       {/* begin::Hourly Rate Modal */}
-      <Modal isOpen={isOpen} onClose={onClose}>
-        <form onSubmit={onSaveHourlyRate}>
-          <ModalOverlay />
-          <ModalContent>
-            <ModalHeader>Edit hourly rate</ModalHeader>
-            <ModalCloseButton />
-            <ModalBody pb={6}>
-              <Input name="rate" type="number" step="any" placeholder="Enter your hourly rate" />
-            </ModalBody>
-            <ModalFooter>
-              <Button mr={3} type="submit">
-                Save
-              </Button>
-              <Button onClick={onClose} type="button">
-                Cancel
-              </Button>
-            </ModalFooter>
-          </ModalContent>
-        </form>
-      </Modal>
+      <HourlyRateModal
+        isOpen={isHourRateModalOpen}
+        onSave={onSaveHourlyRate}
+        onClose={onHourlyRateModalClose}
+      />
       {/* end::Hourly Rate Modal */}
+      {/* begin::Invoice Modal */}
+      <InvoicePdfModal isOpen={isInvoiceModalOpen} onClose={onInvoiceModalClose} />
+      {/* end::Invoice Modal */}
     </>
   );
 };

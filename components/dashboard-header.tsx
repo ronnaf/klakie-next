@@ -25,7 +25,11 @@ export const DashboardHeader = (props: Props) => {
 
   const router = useRouter();
 
-  const onLogout = () => {
+  const onSettingsButtonClick = () => {
+    router.push("/settings");
+  };
+
+  const onLogoutButtonClick = () => {
     Cookies.remove(k.API_KEY_KEY);
     Cookies.remove(k.HOURLY_RATE_KEY);
     router.replace("/login");
@@ -60,8 +64,10 @@ export const DashboardHeader = (props: Props) => {
                 </MenuItem>
               </MenuGroup>
               <MenuDivider />
-              <MenuItem icon={<SettingsIcon />}>Settings</MenuItem>
-              <MenuItem icon={<ExternalLinkIcon />} onClick={onLogout}>
+              <MenuItem icon={<SettingsIcon />} onClick={onSettingsButtonClick}>
+                Settings
+              </MenuItem>
+              <MenuItem icon={<ExternalLinkIcon />} onClick={onLogoutButtonClick}>
                 Log out
               </MenuItem>
             </MenuList>

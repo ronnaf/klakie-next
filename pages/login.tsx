@@ -68,7 +68,13 @@ const Login: NextPage = () => {
                 </Stack>
                 <Stack spacing="4">
                   <Center>
-                    <Button type="submit" w="full" size="lg" isDisabled={loading} isLoading={loading}>
+                    <Button
+                      type="submit"
+                      w="full"
+                      size="lg"
+                      isDisabled={loading}
+                      isLoading={loading}
+                    >
                       Continue
                     </Button>
                   </Center>
