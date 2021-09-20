@@ -1,6 +1,6 @@
 import { Button, IconButton } from "@chakra-ui/button";
 import { ArrowBackIcon } from "@chakra-ui/icons";
-import { Box, Container, Heading, HStack, Text } from "@chakra-ui/layout";
+import { Box, Container, Flex, Heading, HStack, Text } from "@chakra-ui/layout";
 import {
   FormControl,
   FormLabel,
@@ -11,12 +11,17 @@ import {
   NumberInputField,
   NumberInputStepper,
   Select,
+  Tab,
+  TabList,
+  TabPanel,
+  TabPanels,
+  Tabs,
   useToast,
 } from "@chakra-ui/react";
 import { GetServerSidePropsContext } from "next";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import React from "react";
+import React, { useState } from "react";
 import { k } from "../lib/constants";
 import { setCookie } from "../lib/helpers/cookie-helper";
 import { InvoiceConfig } from "../lib/models/invoice-config";
@@ -28,6 +33,8 @@ type Props = {
 const Settings = (props: Props) => {
   const toast = useToast();
   const router = useRouter();
+
+  const [loading, setLoading] = useState(false);
 
   const onSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
@@ -77,6 +84,7 @@ const Settings = (props: Props) => {
   };
 
   const onBackButtonClick = () => {
+    setLoading(true);
     router.push("/");
   };
 
@@ -96,9 +104,11 @@ const Settings = (props: Props) => {
           <HStack>
             <IconButton
               aria-label="Go back to home"
-              icon={<ArrowBackIcon />}
+              icon={<ArrowBackIcon boxSize="6" />}
               variant="ghost"
               onClick={onBackButtonClick}
+              isLoading={loading}
+              isDisabled={loading}
             />
             <Heading as="h3" size="lg">
               Settings
@@ -112,68 +122,88 @@ const Settings = (props: Props) => {
                 <Heading as="h4" size="md" mb="2">
                   Invoicing
                 </Heading>
-                <Text>The following properties will be reflected in your invoice</Text>
+                <Text>The following properties will reflect in your invoice</Text>
               </Box>
               <form onSubmit={onSubmit}>
-                <FormControl id="name" mb="4">
-                  <FormLabel>Name</FormLabel>
-                  <Input type="name" defaultValue={props.invoiceConfig.name} />
-                </FormControl>
-                <FormControl id="address" mb="4">
-                  <FormLabel>Address</FormLabel>
-                  <Input type="address" defaultValue={props.invoiceConfig.address} />
-                </FormControl>
-                <FormControl id="tin" mb="4">
-                  <FormLabel>TIN</FormLabel>
-                  <Input type="tin" defaultValue={props.invoiceConfig.tin} />
-                </FormControl>
-                <FormControl id="employmentType" mb="4">
-                  <FormLabel>Employment type</FormLabel>
-                  <Select defaultValue={props.invoiceConfig.employmentType}>
-                    <option value="ftf">FTF</option>
-                    <option value="fte">FTE</option>
-                  </Select>
-                </FormControl>
-                <FormControl id="tax" mb="4">
-                  <FormLabel>Tax percentage</FormLabel>
-                  <NumberInput name="tax" max={100} min={0} defaultValue={props.invoiceConfig.tax}>
-                    <NumberInputField />
-                    <NumberInputStepper>
-                      <NumberIncrementStepper />
-                      <NumberDecrementStepper />
-                    </NumberInputStepper>
-                  </NumberInput>
-                </FormControl>
-                <FormControl id="bankName" mb="4">
-                  <FormLabel>Bank name</FormLabel>
-                  <Input type="bankName" defaultValue={props.invoiceConfig.bankName} />
-                </FormControl>
-                <FormControl id="bankAccount" mb="4">
-                  <FormLabel>Bank account number</FormLabel>
-                  <Input type="bankAccount" defaultValue={props.invoiceConfig.bankAccount} />
-                </FormControl>
-                <FormControl id="employer" mb="4">
-                  <FormLabel>Employer</FormLabel>
-                  <Input type="employer" defaultValue={props.invoiceConfig.employer} />
-                </FormControl>
-                <FormControl id="employerAddress" mb="4">
-                  <FormLabel>Employer address</FormLabel>
-                  <Input
-                    type="employerAddress"
-                    defaultValue={props.invoiceConfig.employerAddress}
-                  />
-                </FormControl>
-                <FormControl id="employerEmail" mb="4">
-                  <FormLabel>Employer email</FormLabel>
-                  <Input type="employerEmail" defaultValue={props.invoiceConfig.employerEmail} />
-                </FormControl>
-                <FormControl id="employerTin" mb="4">
-                  <FormLabel>Employer TIN</FormLabel>
-                  <Input type="employerTin" defaultValue={props.invoiceConfig.employerTin} />
-                </FormControl>
-                <Button type="submit" mt="2">
-                  Save
-                </Button>
+                <Tabs variant="enclosed">
+                  <TabList>
+                    <Tab>Basic information</Tab>
+                    <Tab>Employer information</Tab>
+                  </TabList>
+                  <TabPanels border="1px" borderTop="0" borderColor="whiteAlpha.300">
+                    <TabPanel>
+                      <FormControl id="name" mb="4">
+                        <FormLabel>Name</FormLabel>
+                        <Input type="name" defaultValue={props.invoiceConfig.name} />
+                      </FormControl>
+                      <FormControl id="address" mb="4">
+                        <FormLabel>Address</FormLabel>
+                        <Input type="address" defaultValue={props.invoiceConfig.address} />
+                      </FormControl>
+                      <FormControl id="tin" mb="4">
+                        <FormLabel>TIN</FormLabel>
+                        <Input type="tin" defaultValue={props.invoiceConfig.tin} />
+                      </FormControl>
+                      <FormControl id="employmentType" mb="4">
+                        <FormLabel>Employment type</FormLabel>
+                        <Select defaultValue={props.invoiceConfig.employmentType}>
+                          <option value="ftf">FTF</option>
+                          <option value="fte">FTE</option>
+                        </Select>
+                      </FormControl>
+                      <FormControl id="tax" mb="4">
+                        <FormLabel>Tax percentage</FormLabel>
+                        <NumberInput
+                          name="tax"
+                          max={100}
+                          min={0}
+                          defaultValue={props.invoiceConfig.tax}
+                        >
+                          <NumberInputField />
+                          <NumberInputStepper>
+                            <NumberIncrementStepper />
+                            <NumberDecrementStepper />
+                          </NumberInputStepper>
+                        </NumberInput>
+                      </FormControl>
+                      <FormControl id="bankName" mb="4">
+                        <FormLabel>Bank name</FormLabel>
+                        <Input type="bankName" defaultValue={props.invoiceConfig.bankName} />
+                      </FormControl>
+                      <FormControl id="bankAccount" mb="4">
+                        <FormLabel>Bank account number</FormLabel>
+                        <Input type="bankAccount" defaultValue={props.invoiceConfig.bankAccount} />
+                      </FormControl>
+                    </TabPanel>
+                    <TabPanel>
+                      <FormControl id="employer" mb="4">
+                        <FormLabel>Employer</FormLabel>
+                        <Input type="employer" defaultValue={props.invoiceConfig.employer} />
+                      </FormControl>
+                      <FormControl id="employerAddress" mb="4">
+                        <FormLabel>Employer address</FormLabel>
+                        <Input
+                          type="employerAddress"
+                          defaultValue={props.invoiceConfig.employerAddress}
+                        />
+                      </FormControl>
+                      <FormControl id="employerEmail" mb="4">
+                        <FormLabel>Employer email</FormLabel>
+                        <Input
+                          type="employerEmail"
+                          defaultValue={props.invoiceConfig.employerEmail}
+                        />
+                      </FormControl>
+                      <FormControl id="employerTin" mb="4">
+                        <FormLabel>Employer TIN</FormLabel>
+                        <Input type="employerTin" defaultValue={props.invoiceConfig.employerTin} />
+                      </FormControl>
+                    </TabPanel>
+                  </TabPanels>
+                </Tabs>
+                <Flex justifyContent="flex-end" mt="4">
+                  <Button type="submit">Update settings</Button>
+                </Flex>
               </form>
             </Box>
           </Box>
