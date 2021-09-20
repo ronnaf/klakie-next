@@ -251,17 +251,19 @@ const Index = (props: Props) => {
                         <Spinner />
                       </Box>
                     )}
-                    <Box>
-                      <Tooltip label="View invoice">
-                        <IconButton
-                          aria-label="View invoice"
-                          icon={<Icon as={IoReceiptOutline} />}
-                          variant="outline"
-                          onClick={onInvoiceModalOpen}
-                          isDisabled={loading}
-                        />
-                      </Tooltip>
-                    </Box>
+                    {period === "semi-monthly" && (
+                      <Box>
+                        <Tooltip label="View invoice">
+                          <IconButton
+                            aria-label="View invoice"
+                            icon={<Icon as={IoReceiptOutline} />}
+                            variant="outline"
+                            onClick={onInvoiceModalOpen}
+                            isDisabled={loading}
+                          />
+                        </Tooltip>
+                      </Box>
+                    )}
                     <Select
                       disabled={loading}
                       value={period}
