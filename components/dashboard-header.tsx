@@ -8,7 +8,7 @@ import { Switch } from "@chakra-ui/switch";
 import Cookies from "js-cookie";
 import _ from "lodash";
 import { useRouter } from "next/router";
-import React from "react";
+import React, { useState } from "react";
 import { k } from "../lib/constants";
 import { ClockifyUser } from "../lib/models/clockify-user";
 import { ClockifyWorkspace } from "../lib/models/clockify-workspace";
@@ -25,7 +25,11 @@ export const DashboardHeader = (props: Props) => {
 
   const router = useRouter();
 
+  const [loadingSettings, setLoadingSettings] = useState(false);
+  const [loadingLogout, setLoadingLogout] = useState(false);
+
   const onSettingsButtonClick = () => {
+    setLoadingSettings(true);
     router.push("/settings");
   };
 
@@ -69,10 +73,16 @@ export const DashboardHeader = (props: Props) => {
                 </MenuItem>
               </MenuGroup>
               <MenuDivider />
-              <MenuItem icon={<SettingsIcon />} onClick={onSettingsButtonClick}>
+              <MenuItem
+                icon={<SettingsIcon />}
+                onClick={onSettingsButtonClick}
+                isDisabled={loadingSettings}>
                 Settings
               </MenuItem>
-              <MenuItem icon={<ExternalLinkIcon />} onClick={onLogoutButtonClick}>
+              <MenuItem
+                icon={<ExternalLinkIcon />}
+                onClick={onLogoutButtonClick}
+                isDisabled={loadingLogout}>
                 Log out
               </MenuItem>
             </MenuList>
