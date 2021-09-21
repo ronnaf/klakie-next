@@ -93,7 +93,9 @@ const Index = (props: Props) => {
           range: { start: range.start.toDate(), end: range.end.toDate() },
           workspaceId: workspaceId,
         },
-        { apiKey: Cookies.get(k.API_KEY_KEY) || "" }
+        {
+          apiKey: Cookies.get(k.API_KEY_KEY) || "",
+        }
       );
       setLoading(false);
 
@@ -179,15 +181,26 @@ const Index = (props: Props) => {
     }
   };
 
-  const reportStats = useMemo(() => {
-    const totalTime = report?.totals?.[0]?.totalTime || 0;
-    const totalTimeInHours = convertSecondsToHours(totalTime);
-    const totals = calculateEarnings(totalTimeInHours, hourlyRate, props.rates.taxPercent);
+  const totals = useMemo(() => {
+    const totalTimeInSeconds = report?.totals?.[0]?.totalTime || 0;
+    const totalTimeInHours = convertSecondsToHours(totalTimeInSeconds);
+    const calculatedEarnings = calculateEarnings(
+      totalTimeInHours,
+      hourlyRate,
+      props.rates.taxPercent
+    );
+    return {
+      totalTimeInSeconds,
+      totalTimeInHours,
+      ...calculatedEarnings,
+    };
+  }, [hourlyRate, props.rates.taxPercent, report?.totals]);
 
+  const reportStats = useMemo(() => {
     return [
       {
         name: "Total Time",
-        value: formatDecimalTimeToDuration(totalTime, "seconds"),
+        value: formatDecimalTimeToDuration(totals.totalTimeInSeconds, "seconds"),
       },
       {
         name: "Total Earnings",
@@ -198,7 +211,7 @@ const Index = (props: Props) => {
         value: `₱${numeral(totals.taxWithheld).format("0,0.00")}`,
       },
     ];
-  }, [hourlyRate, props.rates.taxPercent, report?.totals]);
+  }, [totals.taxWithheld, totals.totalEarnings, totals.totalTimeInSeconds]);
 
   const dailyTimeEntries = useMemo(
     () => getDailyTimeEntries(report?.timeentries || []),
@@ -267,8 +280,7 @@ const Index = (props: Props) => {
                     <Select
                       disabled={loading}
                       value={period}
-                      onChange={(e) => setPeriod(e.target.value as Period)}
-                    >
+                      onChange={(e) => setPeriod(e.target.value as Period)}>
                       <option value="semi-monthly">Semi-monthly</option>
                       <option value="weekly">Weekly</option>
                     </Select>
@@ -318,8 +330,7 @@ const Index = (props: Props) => {
               variant="subtle"
               flexDirection="column"
               alignItems="center"
-              justifyContent="center"
-            >
+              justifyContent="center">
               <AlertIcon boxSize="40px" mr={0} />
               <AlertTitle mt={4} mb={1} fontSize="lg">
                 Failed to load page
@@ -350,7 +361,16 @@ const Index = (props: Props) => {
       />
       {/* end::Hourly Rate Modal */}
       {/* begin::Invoice Modal */}
-      <InvoicePdfModal isOpen={isInvoiceModalOpen} onClose={onInvoiceModalClose} />
+      {props.user.status === "success" && (
+        <InvoicePdfModal
+          isOpen={isInvoiceModalOpen}
+          dailyEntries={dailyTimeEntries}
+          user={props.user.data}
+          rates={props.rates}
+          totals={totals}
+          onClose={onInvoiceModalClose}
+        />
+      )}
       {/* end::Invoice Modal */}
     </>
   );

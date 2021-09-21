@@ -1,4 +1,4 @@
-import { convertSecondsToHours } from './duration-helper';
+import { convertSecondsToHours } from "./duration-helper";
 
 export const DEFAULT_TAX_DEDUCTION_PERCENT = 0.02;
 
@@ -10,6 +10,7 @@ export const calculateEarnings = (
   const earnings = hours * hourlyRate;
   const taxWithheld = earnings * taxDeductionPercent;
   return {
+    earnings,
     taxWithheld,
     totalEarnings: earnings - taxWithheld,
   };
