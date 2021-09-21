@@ -99,7 +99,7 @@ export const InvoicePdfModal = (props: Props) => {
     return (dayjs(date).format("MMMYYYY") + (dayjs(date).date() === 1 ? "a" : "b")).toLowerCase();
   };
 
-  const ascDailyEntries = props.dailyEntries.sort((a, b) => {
+  const ascDailyEntries = [...props.dailyEntries].sort((a, b) => {
     const dateA = a.dateStarted;
     const dateB = b.dateStarted;
     if (dateA < dateB) return -1;
