@@ -32,6 +32,7 @@ export const DashboardHeader = (props: Props) => {
   const onLogoutButtonClick = () => {
     Cookies.remove(k.API_KEY_KEY);
     Cookies.remove(k.HOURLY_RATE_KEY);
+    Cookies.remove(k.INVOICE_CONFIG_JSON_KEY);
     router.replace("/login");
   };
 
@@ -41,8 +42,7 @@ export const DashboardHeader = (props: Props) => {
         <Select
           disabled={props.loading}
           defaultValue={props.user.defaultWorkspace || ""}
-          onChange={(e) => props.onWorkspaceChange(e.target.value)}
-        >
+          onChange={(e) => props.onWorkspaceChange(e.target.value)}>
           {props.workspaces.map((workspace) => (
             <option key={workspace.id} value={workspace.id}>
               {workspace.name}
@@ -55,7 +55,12 @@ export const DashboardHeader = (props: Props) => {
         <HStack spacing="4">
           <Text>Hi, {props.user.name.split(" ")[0]}!</Text>
           <Menu placement="bottom-end" closeOnSelect={false}>
-            <MenuButton as={Avatar} cursor="pointer" name={props.user.name} src={props.user.profilePicture} />
+            <MenuButton
+              as={Avatar}
+              cursor="pointer"
+              name={props.user.name}
+              src={props.user.profilePicture}
+            />
             <MenuList>
               <MenuGroup title="Color mode">
                 <MenuItem>
