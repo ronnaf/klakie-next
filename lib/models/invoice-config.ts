@@ -3,7 +3,8 @@ export interface InvoiceConfig {
   address: string;
   tin: string;
   employmentType: string;
-  tax: string;
+  taxPercent: number;
+  hourlyRate: number;
   bankName: string;
   bankAccount: string;
   employer: string;

@@ -1,18 +1,18 @@
 import { Button, ButtonGroup } from "@chakra-ui/button";
 import { useDisclosure } from "@chakra-ui/hooks";
-import { ArrowBackIcon, ArrowForwardIcon, EditIcon, ViewIcon } from "@chakra-ui/icons";
+import { ArrowBackIcon, ArrowForwardIcon, EditIcon } from "@chakra-ui/icons";
 import { Box, Container, Flex, Grid, HStack, Spacer, Text } from "@chakra-ui/layout";
 import {
   Alert,
   AlertDescription,
   AlertIcon,
   AlertTitle,
+  Icon,
   IconButton,
   ListItem,
   Spinner,
-  UnorderedList,
-  Icon,
   Tooltip,
+  UnorderedList,
 } from "@chakra-ui/react";
 import { Select } from "@chakra-ui/select";
 import { useToast } from "@chakra-ui/toast";
@@ -23,6 +23,7 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import numeral from "numeral";
 import React, { useEffect, useMemo, useState } from "react";
+import { IoReceiptOutline } from "react-icons/io5";
 import { DailyEntriesBox } from "../components/daily-entries-box";
 import { DashboardHeader } from "../components/dashboard-header";
 import { HourlyRateModal } from "../components/hourly-rate-modal";
@@ -30,25 +31,22 @@ import { InvoicePdfModal } from "../components/invoice-pdf-modal";
 import { StatBox } from "../components/stat-box";
 import { k } from "../lib/constants";
 import { setCookie } from "../lib/helpers/cookie-helper";
-import { convertSecondsToHours, formatDecimalTimeToDuration } from "../lib/helpers/duration-helper";
+import { formatCurrency } from "../lib/helpers/currency-helper";
+import { convertSecondsToHours, formatDecimalTime } from "../lib/helpers/duration-helper";
 import { calculateEarnings } from "../lib/helpers/earnings-helper";
 import { getDailyTimeEntries } from "../lib/helpers/entries-helper";
 import { ClockifyDetailedReport } from "../lib/models/clockify-detailed-report";
 import { ClockifyUser } from "../lib/models/clockify-user";
 import { ClockifyWorkspace } from "../lib/models/clockify-workspace";
+import { InvoiceConfig } from "../lib/models/invoice-config";
 import { Period } from "../lib/models/period";
 import { ResponseData } from "../lib/models/response-data";
 import { clockifyApiService } from "../lib/services/clockify-api-service";
-import { IoReceiptOutline } from "react-icons/io5";
-import { InvoiceConfig } from "../lib/models/invoice-config";
 
 interface Props {
   user: ResponseData<ClockifyUser>;
   workspaces: ResponseData<ClockifyWorkspace[]>;
-  rates: {
-    hourlyRate: number;
-    taxPercent: number;
-  };
+  invoiceConfig: InvoiceConfig | null;
 }
 
 const Index = (props: Props) => {
@@ -69,7 +67,7 @@ const Index = (props: Props) => {
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<ClockifyDetailedReport | null>(null);
   const [period, setPeriod] = useState<Period>("weekly");
-  const [hourlyRate, setHourlyRate] = useState(props.rates.hourlyRate);
+  const [hourlyRate, setHourlyRate] = useState(props.invoiceConfig?.hourlyRate || 0);
   const [range, setRange] = useState({
     // dayjs start of week is Sunday, but clockify start of week is Monday
     start: dayjs().utc().startOf("week").add(1, "day"),
@@ -127,7 +125,7 @@ const Index = (props: Props) => {
     e.preventDefault();
 
     const target = e.target as typeof e.target & {
-      rate: { value: number };
+      rate: { value: string };
     };
 
     if (!target.rate.value) {
@@ -137,8 +135,13 @@ const Index = (props: Props) => {
       });
     }
 
-    setCookie(k.HOURLY_RATE_KEY, target.rate.value.toString());
-    setHourlyRate(target.rate.value);
+    const newInvoiceConfig = {
+      ...props.invoiceConfig,
+      hourlyRate: parseFloat(target.rate.value),
+    };
+
+    setCookie(k.INVOICE_CONFIG_JSON_KEY, JSON.stringify(newInvoiceConfig));
+    setHourlyRate(newInvoiceConfig.hourlyRate);
 
     onHourlyRateModalClose();
   };
@@ -182,36 +185,25 @@ const Index = (props: Props) => {
   };
 
   const totals = useMemo(() => {
+    const taxPercentDecimal = (props.invoiceConfig?.taxPercent || 0) / 100;
     const totalTimeInSeconds = report?.totals?.[0]?.totalTime || 0;
     const totalTimeInHours = convertSecondsToHours(totalTimeInSeconds);
-    const calculatedEarnings = calculateEarnings(
-      totalTimeInHours,
-      hourlyRate,
-      props.rates.taxPercent
-    );
+    const earnings = calculateEarnings(totalTimeInHours, hourlyRate, taxPercentDecimal);
     return {
       totalTimeInSeconds,
       totalTimeInHours,
-      ...calculatedEarnings,
+      ...earnings,
     };
-  }, [hourlyRate, props.rates.taxPercent, report?.totals]);
+  }, [hourlyRate, props.invoiceConfig?.taxPercent, report?.totals]);
 
-  const reportStats = useMemo(() => {
-    return [
-      {
-        name: "Total Time",
-        value: formatDecimalTimeToDuration(totals.totalTimeInSeconds, "seconds"),
-      },
-      {
-        name: "Total Earnings",
-        value: `₱${numeral(totals.totalEarnings).format("0,0.00")}`,
-      },
-      {
-        name: "Tax Withheld",
-        value: `₱${numeral(totals.taxWithheld).format("0,0.00")}`,
-      },
-    ];
-  }, [totals.taxWithheld, totals.totalEarnings, totals.totalTimeInSeconds]);
+  const reportStats = useMemo(
+    () => [
+      { name: "Total Time", value: formatDecimalTime(totals.totalTimeInSeconds, "seconds") },
+      { name: "Total Earnings", value: formatCurrency(totals.totalEarnings) },
+      { name: "Tax Withheld", value: formatCurrency(totals.taxWithheld) },
+    ],
+    [totals.taxWithheld, totals.totalEarnings, totals.totalTimeInSeconds]
+  );
 
   const dailyTimeEntries = useMemo(
     () => getDailyTimeEntries(report?.timeentries || []),
@@ -363,12 +355,13 @@ const Index = (props: Props) => {
       {/* begin::Invoice Modal */}
       {props.user.status === "success" && (
         <InvoicePdfModal
-          isOpen={isInvoiceModalOpen}
-          dailyEntries={dailyTimeEntries}
-          user={props.user.data}
-          rates={props.rates}
-          totals={totals}
           onClose={onInvoiceModalClose}
+          isOpen={isInvoiceModalOpen}
+          userData={{
+            dailyEntries: dailyTimeEntries,
+            profile: props.user.data,
+            totals,
+          }}
         />
       )}
       {/* end::Invoice Modal */}
@@ -391,7 +384,6 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
 
   const user = await clockifyApiService.getCurrentUser(null, { apiKey });
   const workspaces = await clockifyApiService.getCurrentWorkspaces(null, { apiKey });
-  const hourlyRate = parseFloat(context.req.cookies[k.HOURLY_RATE_KEY] || "0");
   const invoiceConfigJson = context.req.cookies[k.INVOICE_CONFIG_JSON_KEY];
 
   let invoiceConfig: InvoiceConfig | null = null;
@@ -399,17 +391,12 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
     invoiceConfig = JSON.parse(invoiceConfigJson);
   }
 
-  const taxPercent = parseInt(invoiceConfig?.tax || "0") / 100;
-
   // Pass data to the page via props
   return {
     props: {
-      user: user,
-      workspaces: workspaces,
-      rates: {
-        hourlyRate,
-        taxPercent,
-      },
+      user,
+      workspaces,
+      invoiceConfig,
     },
   };
 }

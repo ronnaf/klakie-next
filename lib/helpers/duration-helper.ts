@@ -1,20 +1,20 @@
-export const formatDecimalTimeToDuration = (
+export const formatDecimalTime = (
   decimal: number,
-  type: 'hours' | 'minutes' | 'seconds' | 'milliseconds',
-  format: ':::' | 'hr m s' = ':::'
+  type: "hours" | "minutes" | "seconds" | "milliseconds",
+  format: ":::" | "hr m s" = ":::"
 ) => {
   let decimalInSeconds = 0;
   switch (type) {
-    case 'hours':
+    case "hours":
       decimalInSeconds = decimal * 3600;
       break;
-    case 'minutes':
+    case "minutes":
       decimalInSeconds = decimal * 60;
       break;
-    case 'seconds':
+    case "seconds":
       decimalInSeconds = decimal;
       break;
-    case 'milliseconds':
+    case "milliseconds":
       decimalInSeconds = decimal / 1e6;
       break;
     default:
@@ -30,9 +30,9 @@ export const formatDecimalTimeToDuration = (
   const exactSeconds = (exactMinutes - flooredMinutes) * 60;
   const flooredSeconds = Math.floor(exactSeconds);
 
-  const hourStr = flooredHours.toString().padStart(2, '0');
-  const minuteStr = flooredMinutes.toString().padStart(2, '0');
-  const secondStr = flooredSeconds.toString().padStart(2, '0');
+  const hourStr = flooredHours.toString().padStart(2, "0");
+  const minuteStr = flooredMinutes.toString().padStart(2, "0");
+  const secondStr = flooredSeconds.toString().padStart(2, "0");
 
   return `${hourStr}:${minuteStr}:${secondStr}`;
 };

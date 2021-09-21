@@ -8,7 +8,7 @@ import dayjs from "dayjs";
 import numeral from "numeral";
 import React from "react";
 import { copyToClipboard } from "../lib/helpers/clipboard-helper";
-import { formatDecimalTimeToDuration } from "../lib/helpers/duration-helper";
+import { formatDecimalTime } from "../lib/helpers/duration-helper";
 import { calculateEarnings } from "../lib/helpers/earnings-helper";
 import { DailyEntry } from "../lib/models/daily-entry";
 
@@ -41,15 +41,15 @@ export const DailyEntriesBox = (props: Props) => {
         </HStack>
         <Spacer />
         <HStack>
-          <Text>{formatDecimalTimeToDuration(props.dailyTimeEntry.totalDayHours, "hours")}</Text>
+          <Text>{formatDecimalTime(props.dailyTimeEntry.totalDayHours, "hours")}</Text>
           <Divider orientation="vertical" />
           <Text>{props.dailyTimeEntry.totalDayHours.toFixed(2)}</Text>
           <Divider orientation="vertical" />
           <Badge>
             ₱
-            {numeral(calculateEarnings(props.dailyTimeEntry.totalDayHours, props.hourlyRate).totalEarnings).format(
-              "0,0.00"
-            )}
+            {numeral(
+              calculateEarnings(props.dailyTimeEntry.totalDayHours, props.hourlyRate).totalEarnings
+            ).format("0,0.00")}
           </Badge>
         </HStack>
       </Flex>
@@ -57,11 +57,11 @@ export const DailyEntriesBox = (props: Props) => {
       <Divider />
       <Box>
         {props.dailyTimeEntry.groupedTimeEntries.map((groupedTimeEntry, index) => {
-          const entryDuration = formatDecimalTimeToDuration(groupedTimeEntry.totalDescHours, "hours");
+          const entryDuration = formatDecimalTime(groupedTimeEntry.totalDescHours, "hours");
           const entryDecimal = groupedTimeEntry.totalDescHours.toFixed(2);
           const isLast = index === props.dailyTimeEntry.groupedTimeEntries.length - 1;
           return (
-            <>
+            <div key={groupedTimeEntry.id}>
               <Box p="2" key={groupedTimeEntry.id}>
                 <Flex>
                   <HStack>
@@ -80,7 +80,7 @@ export const DailyEntriesBox = (props: Props) => {
                 </Flex>
               </Box>
               {!isLast && <Divider />}
-            </>
+            </div>
           );
         })}
       </Box>

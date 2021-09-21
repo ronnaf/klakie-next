@@ -57,7 +57,7 @@ const Settings = (props: Props) => {
     const address = target.address.value;
     const tin = target.tin.value;
     const employmentType = target.employmentType.value;
-    const tax = target.tax.value;
+    const tax = parseInt(target.tax.value);
     const bankName = target.bankName.value;
     const bankAccount = target.bankAccount.value;
     const employer = target.employer.value;
@@ -66,11 +66,12 @@ const Settings = (props: Props) => {
     const employerTin = target.employerTin.value;
 
     const invoiceConfig: InvoiceConfig = {
+      ...props.invoiceConfig,
       name,
       address,
       tin,
       employmentType,
-      tax,
+      taxPercent: tax,
       bankName,
       bankAccount,
       employer,
@@ -157,8 +158,7 @@ const Settings = (props: Props) => {
                           name="tax"
                           max={100}
                           min={0}
-                          defaultValue={props.invoiceConfig.tax}
-                        >
+                          defaultValue={props.invoiceConfig.taxPercent}>
                           <NumberInputField />
                           <NumberInputStepper>
                             <NumberIncrementStepper />
