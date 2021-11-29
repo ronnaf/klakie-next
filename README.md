@@ -2,6 +2,8 @@
 
 klakie is a clockify time entry viewer & invoice generator.
 
+previous version: https://github.com/ronnaf/klakie
+
 ![image](https://user-images.githubusercontent.com/32459751/134116405-6ecd4340-9f91-4983-b813-b5b9b93d0f11.png)
 
 ## features
