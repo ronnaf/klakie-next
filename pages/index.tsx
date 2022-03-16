@@ -1,21 +1,30 @@
-import { Button, ButtonGroup } from "@chakra-ui/button";
-import { useDisclosure } from "@chakra-ui/hooks";
 import { ArrowBackIcon, ArrowForwardIcon, EditIcon } from "@chakra-ui/icons";
-import { Box, Container, Flex, Grid, HStack, Spacer, Text } from "@chakra-ui/layout";
+import {
+  Box,
+  Container,
+  Flex,
+  Grid,
+  HStack,
+  Spacer,
+  Text
+} from "@chakra-ui/layout";
 import {
   Alert,
   AlertDescription,
   AlertIcon,
   AlertTitle,
+  Button,
+  ButtonGroup,
   Icon,
   IconButton,
   ListItem,
+  Select,
   Spinner,
   Tooltip,
   UnorderedList,
+  useDisclosure,
+  useToast
 } from "@chakra-ui/react";
-import { Select } from "@chakra-ui/select";
-import { useToast } from "@chakra-ui/toast";
 import dayjs from "dayjs";
 import Cookies from "js-cookie";
 import { GetServerSidePropsContext } from "next";
@@ -32,7 +41,10 @@ import { StatBox } from "../components/stat-box";
 import { k } from "../lib/constants";
 import { setCookie } from "../lib/helpers/cookie-helper";
 import { formatCurrency } from "../lib/helpers/currency-helper";
-import { convertSecondsToHours, formatDecimalTime } from "../lib/helpers/duration-helper";
+import {
+  convertSecondsToHours,
+  formatDecimalTime
+} from "../lib/helpers/duration-helper";
 import { calculateEarnings } from "../lib/helpers/earnings-helper";
 import { getDailyTimeEntries } from "../lib/helpers/entries-helper";
 import { ClockifyDetailedReport } from "../lib/models/clockify-detailed-report";
@@ -53,12 +65,12 @@ const Index = (props: Props) => {
   const {
     isOpen: isHourRateModalOpen,
     onOpen: onHourlyRateModalOpen,
-    onClose: onHourlyRateModalClose,
+    onClose: onHourlyRateModalClose
   } = useDisclosure();
   const {
     isOpen: isInvoiceModalOpen,
     onOpen: onInvoiceModalOpen,
-    onClose: onInvoiceModalClose,
+    onClose: onInvoiceModalClose
   } = useDisclosure();
 
   const router = useRouter();
@@ -67,12 +79,13 @@ const Index = (props: Props) => {
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<ClockifyDetailedReport | null>(null);
   const [period, setPeriod] = useState<Period>("weekly");
-  const [hourlyRate, setHourlyRate] = useState(props.invoiceConfig?.hourlyRate || 0);
+  const [hourlyRate, setHourlyRate] = useState(
+    props.invoiceConfig?.hourlyRate || 0);
   const [range, setRange] = useState({
     // dayjs start of week is Sunday, but clockify start of week is Monday
     start: dayjs().utc().startOf("week").add(1, "day"),
     // dayjs end of week is Saturday, but clockify end of week is Sunday
-    end: dayjs().utc().endOf("week").add(1, "day"),
+    end: dayjs().utc().endOf("week").add(1, "day")
   });
   const [workspaceId, setWorkspace] = useState<string | null>(
     props.user.status === "success" ? props.user.data.defaultWorkspace : null
@@ -89,10 +102,10 @@ const Index = (props: Props) => {
       const report = await clockifyApiService.getDetailedReport(
         {
           range: { start: range.start.toDate(), end: range.end.toDate() },
-          workspaceId: workspaceId,
+          workspaceId: workspaceId
         },
         {
-          apiKey: Cookies.get(k.API_KEY_KEY) || "",
+          apiKey: Cookies.get(k.API_KEY_KEY) || ""
         }
       );
       setLoading(false);
@@ -110,13 +123,18 @@ const Index = (props: Props) => {
         const start = prevRange.start;
         const fifteenth = dayjs.utc([start.year(), start.month(), 15]);
         return start.date() < 15
-          ? { start: start.startOf("month"), end: fifteenth.endOf("date") }
-          : { start: fifteenth.add(1, "day").startOf("date"), end: start.endOf("month") };
+          ?
+          { start: start.startOf("month"), end: fifteenth.endOf("date") }
+          :
+          {
+            start: fifteenth.add(1, "day").startOf("date"),
+            end: start.endOf("month")
+          };
       });
     } else {
       setRange((prevRange) => ({
         start: prevRange.start.startOf("week").add(1, "day"),
-        end: prevRange.start.endOf("week").add(1, "day"),
+        end: prevRange.start.endOf("week").add(1, "day")
       }));
     }
   }, [period]);
@@ -131,13 +149,13 @@ const Index = (props: Props) => {
     if (!target.rate.value) {
       return toast({
         title: "It's blank, you dumbass.",
-        status: "error",
+        status: "error"
       });
     }
 
     const newInvoiceConfig = {
       ...props.invoiceConfig,
-      hourlyRate: parseFloat(target.rate.value),
+      hourlyRate: parseFloat(target.rate.value)
     };
 
     setCookie(k.INVOICE_CONFIG_JSON_KEY, JSON.stringify(newInvoiceConfig));
@@ -150,16 +168,18 @@ const Index = (props: Props) => {
     if (period === "weekly") {
       setRange((prevRange) => ({
         start: prevRange.start.add(1, "week").startOf("date"),
-        end: prevRange.end.add(1, "week").endOf("date"),
+        end: prevRange.end.add(1, "week").endOf("date")
       }));
     } else {
       setRange((prevRange) => {
         const newStart = prevRange.end.add(1, "day");
         const fifteenth = dayjs.utc([newStart.year(), newStart.month(), 15]);
-        const newEnd = newStart.date() > 15 ? newStart.endOf("month") : fifteenth;
+        const newEnd = newStart.date() > 15 ?
+          newStart.endOf("month") :
+          fifteenth;
         return {
           start: newStart.startOf("date"),
-          end: newEnd.endOf("date"),
+          end: newEnd.endOf("date")
         };
       });
     }
@@ -169,16 +189,18 @@ const Index = (props: Props) => {
     if (period === "weekly") {
       setRange((prevRange) => ({
         start: prevRange.start.subtract(1, "week").startOf("date"),
-        end: prevRange.end.subtract(1, "week").endOf("date"),
+        end: prevRange.end.subtract(1, "week").endOf("date")
       }));
     } else {
       setRange((prevRange) => {
         const newEnd = prevRange.start.subtract(1, "day");
         const sixteenth = dayjs.utc([newEnd.year(), newEnd.month(), 16]);
-        const newStart = newEnd.date() > 15 ? sixteenth : newEnd.startOf("month");
+        const newStart = newEnd.date() > 15 ?
+          sixteenth :
+          newEnd.startOf("month");
         return {
           start: newStart.startOf("date"),
-          end: newEnd.endOf("date"),
+          end: newEnd.endOf("date")
         };
       });
     }
@@ -188,19 +210,23 @@ const Index = (props: Props) => {
     const taxPercentDecimal = (props.invoiceConfig?.taxPercent || 0) / 100;
     const totalTimeInSeconds = report?.totals?.[0]?.totalTime || 0;
     const totalTimeInHours = convertSecondsToHours(totalTimeInSeconds);
-    const earnings = calculateEarnings(totalTimeInHours, hourlyRate, taxPercentDecimal);
+    const earnings = calculateEarnings(totalTimeInHours, hourlyRate,
+      taxPercentDecimal);
     return {
       totalTimeInSeconds,
       totalTimeInHours,
-      ...earnings,
+      ...earnings
     };
   }, [hourlyRate, props.invoiceConfig?.taxPercent, report?.totals]);
 
   const reportStats = useMemo(
     () => [
-      { name: "Total Time", value: formatDecimalTime(totals.totalTimeInSeconds, "seconds") },
+      {
+        name: "Total Time",
+        value: formatDecimalTime(totals.totalTimeInSeconds, "seconds")
+      },
       { name: "Total Earnings", value: formatCurrency(totals.totalEarnings) },
-      { name: "Tax Withheld", value: formatCurrency(totals.taxWithheld) },
+      { name: "Tax Withheld", value: formatCurrency(totals.taxWithheld) }
     ],
     [totals.taxWithheld, totals.totalEarnings, totals.totalTimeInSeconds]
   );
@@ -215,14 +241,16 @@ const Index = (props: Props) => {
       {/* begin::Head */}
       <Head>
         <title>Klakie - Workspace</title>
-        <meta name="description" content="Easily track your time entries from Clockify." />
+        <meta name="description"
+              content="Easily track your time entries from Clockify." />
         <link rel="icon" href="/favicon.ico" />
       </Head>
       {/* end::Head */}
       {/* begin::Main Content */}
       <Box py="8">
         <Container maxW="container.md">
-          {props.user.status === "success" && props.workspaces.status === "success" ? (
+          {props.user.status === "success" && props.workspaces.status ===
+          "success" ? (
             <>
               {/* begin::Header */}
               <DashboardHeader
@@ -282,7 +310,8 @@ const Index = (props: Props) => {
                         onClick={onPrevRange}
                       />
                       <Button>
-                        {range.start.format("MMM DD")} - {range.end.format("MMM DD")}
+                        {range.start.format("MMM DD")} - {range.end.format(
+                        "MMM DD")}
                       </Button>
                       <IconButton
                         disabled={loading}
@@ -298,7 +327,8 @@ const Index = (props: Props) => {
               {/* begin::Report Stats */}
               <Grid templateColumns="repeat(3, 1fr)" gap={3} my="6">
                 {reportStats.map((stat) => (
-                  <StatBox key={stat.name} name={stat.name} value={stat.value} />
+                  <StatBox key={stat.name} name={stat.name}
+                           value={stat.value} />
                 ))}
               </Grid>
               {/* end::Report Stats */}
@@ -331,7 +361,8 @@ const Index = (props: Props) => {
                     <ListItem>We could not get your Clockify profile</ListItem>
                   )}
                   {props.workspaces.status === "failure" && (
-                    <ListItem>We could not get your Clockify workspaces</ListItem>
+                    <ListItem>We could not get your Clockify
+                      workspaces</ListItem>
                   )}
                 </UnorderedList>
               </AlertDescription>
@@ -358,7 +389,7 @@ const Index = (props: Props) => {
           userData={{
             dailyEntries: dailyTimeEntries,
             profile: props.user.data,
-            totals,
+            totals
           }}
         />
       )}
@@ -375,13 +406,14 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
     return {
       redirect: {
         destination: "/login",
-        permanent: false,
-      },
+        permanent: false
+      }
     };
   }
 
   const user = await clockifyApiService.getCurrentUser(null, { apiKey });
-  const workspaces = await clockifyApiService.getCurrentWorkspaces(null, { apiKey });
+  const workspaces = await clockifyApiService.getCurrentWorkspaces(null,
+    { apiKey });
   const invoiceConfigJson = context.req.cookies[k.INVOICE_CONFIG_JSON_KEY];
 
   let invoiceConfig: InvoiceConfig | null = null;
@@ -394,8 +426,8 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
     props: {
       user,
       workspaces,
-      invoiceConfig,
-    },
+      invoiceConfig
+    }
   };
 }
 

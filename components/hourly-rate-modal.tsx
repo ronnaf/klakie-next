@@ -7,8 +7,8 @@ import {
   ModalContent,
   ModalFooter,
   ModalHeader,
-  ModalOverlay,
-} from "@chakra-ui/modal";
+  ModalOverlay
+} from "@chakra-ui/react";
 import React from "react";
 
 type Props = {
@@ -26,7 +26,8 @@ export const HourlyRateModal = ({ isOpen, onSave, onClose }: Props) => {
           <ModalHeader>Edit hourly rate</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={6}>
-            <Input name="rate" type="number" step="any" placeholder="Enter your hourly rate" />
+            <Input name="rate" type="number" step="any"
+                   placeholder="Enter your hourly rate" />
           </ModalBody>
           <ModalFooter>
             <Button mr={3} type="submit">

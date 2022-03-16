@@ -1,9 +1,17 @@
-import { Button } from "@chakra-ui/button";
 import { useColorMode } from "@chakra-ui/color-mode";
-import { Box, Center, Container, Heading, Stack, VStack } from "@chakra-ui/layout";
-import { Switch } from "@chakra-ui/switch";
-import { Textarea } from "@chakra-ui/textarea";
-import { useToast } from "@chakra-ui/toast";
+import {
+  Box,
+  Button,
+  Center,
+  Container,
+  Heading,
+  Stack,
+  Switch,
+  Textarea,
+  useToast,
+  VStack
+} from "@chakra-ui/react";
+
 import type { GetServerSidePropsContext, NextPage } from "next";
 import { useRouter } from "next/dist/client/router";
 import Head from "next/head";
@@ -29,7 +37,7 @@ const Login: NextPage = () => {
     if (!target.apiKey.value.trim()) {
       return toast({
         title: "It's blank, you dumbass.",
-        status: "error",
+        status: "error"
       });
     }
 
@@ -42,14 +50,16 @@ const Login: NextPage = () => {
     <>
       <Head>
         <title>Klakie</title>
-        <meta name="description" content="Easily track your time entries from Clockify." />
+        <meta name="description"
+              content="Easily track your time entries from Clockify." />
         <link rel="icon" href="/favicon.ico" />
       </Head>
       <Box h="100vh" pos="relative">
         <VStack pos="absolute" top="4" right="4">
           <Switch isChecked={colorMode === "dark"} onChange={toggleColorMode} />
         </VStack>
-        <Container pos="absolute" top="45%" left="50%" transform="translate(-50%, -50%)">
+        <Container pos="absolute" top="45%" left="50%"
+                   transform="translate(-50%, -50%)">
           <Center>
             <Heading as="h1" size="lg">
               klakie
@@ -64,7 +74,8 @@ const Login: NextPage = () => {
                       Enter your Clockify API key:
                     </Heading>
                   </Center>
-                  <Textarea name="apiKey" placeholder="Paste your API key here" />
+                  <Textarea name="apiKey"
+                            placeholder="Paste your API key here" />
                 </Stack>
                 <Stack spacing="4">
                   <Center>
@@ -107,12 +118,12 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
     return {
       redirect: {
         destination: "/",
-        permanent: false,
-      },
+        permanent: false
+      }
     };
   }
   return {
-    props: {},
+    props: {}
   };
 }
 
