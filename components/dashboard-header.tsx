@@ -1,10 +1,21 @@
 import { Avatar } from "@chakra-ui/avatar";
 import { useColorMode } from "@chakra-ui/color-mode";
 import { ExternalLinkIcon, SettingsIcon } from "@chakra-ui/icons";
-import { Box, Flex, HStack, Spacer, Text } from "@chakra-ui/layout";
-import { Menu, MenuButton, MenuDivider, MenuGroup, MenuItem, MenuList } from "@chakra-ui/menu";
-import { Select } from "@chakra-ui/select";
-import { Switch } from "@chakra-ui/switch";
+import {
+  Box,
+  Flex,
+  HStack,
+  Menu,
+  MenuButton,
+  MenuDivider,
+  MenuGroup,
+  MenuItem,
+  MenuList,
+  Select,
+  Spacer,
+  Switch,
+  Text
+} from "@chakra-ui/react";
 import Cookies from "js-cookie";
 import _ from "lodash";
 import { useRouter } from "next/router";
@@ -68,7 +79,8 @@ export const DashboardHeader = (props: Props) => {
             <MenuList>
               <MenuGroup title="Color mode">
                 <MenuItem>
-                  <Switch mr="3" isChecked={colorMode === "dark"} onChange={toggleColorMode} />
+                  <Switch mr="3" isChecked={colorMode === "dark"}
+                          onChange={toggleColorMode} />
                   <span>{_.startCase(colorMode)} mode</span>
                 </MenuItem>
               </MenuGroup>

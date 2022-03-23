@@ -1,4 +1,4 @@
-import { Modal, ModalContent, ModalOverlay } from "@chakra-ui/modal";
+import { Modal, ModalContent, ModalOverlay } from "@chakra-ui/react";
 import { Font, PDFViewer } from "@react-pdf/renderer";
 import Cookies from "js-cookie";
 import React, { useEffect, useState } from "react";
@@ -25,7 +25,8 @@ type Props = {
 };
 
 export const InvoicePdfModal = (props: Props) => {
-  const [invoiceConfig, setInvoiceConfig] = useState<InvoiceConfig | null>(null);
+  const [invoiceConfig, setInvoiceConfig] = useState<InvoiceConfig | null>(
+    null);
 
   // Fetch invoice config from cookies on mount
   useEffect(() => {
@@ -40,7 +41,8 @@ export const InvoicePdfModal = (props: Props) => {
     return null;
   }
   return (
-    <Modal size="4xl" scrollBehavior="inside" isOpen={props.isOpen} onClose={props.onClose}>
+    <Modal size="4xl" scrollBehavior="inside" isOpen={props.isOpen}
+           onClose={props.onClose}>
       <ModalOverlay />
       <ModalContent height="100%">
         <PDFViewer width="100%" height="100%">
@@ -54,13 +56,13 @@ export const InvoicePdfModal = (props: Props) => {
               hourlyRate: invoiceConfig.hourlyRate,
               name: invoiceConfig.name,
               taxPercent: invoiceConfig.taxPercent,
-              tin: invoiceConfig.tin,
+              tin: invoiceConfig.tin
             }}
             to={{
               address: invoiceConfig.employerAddress,
               email: invoiceConfig.employerEmail,
               employer: invoiceConfig.employer,
-              tin: invoiceConfig.employerTin,
+              tin: invoiceConfig.employerTin
             }}
             dailyEntries={props.userData.dailyEntries}
             totals={props.userData.totals}
@@ -75,8 +77,16 @@ Font.register({
   family: "HelveticaNeue",
   fonts: [
     { fontWeight: "400", src: "/fonts/HelveticaNeue.ttf" },
-    { fontWeight: "400", fontStyle: "italic", src: "/fonts/HelveticaNeue-Italic.ttf" },
+    {
+      fontWeight: "400",
+      fontStyle: "italic",
+      src: "/fonts/HelveticaNeue-Italic.ttf"
+    },
     { fontWeight: "700", src: "/fonts/HelveticaNeue-Bold.ttf" },
-    { fontWeight: "700", fontStyle: "italic", src: "/fonts/HelveticaNeue-BoldItalic.ttf" },
-  ],
+    {
+      fontWeight: "700",
+      fontStyle: "italic",
+      src: "/fonts/HelveticaNeue-BoldItalic.ttf"
+    }
+  ]
 });
